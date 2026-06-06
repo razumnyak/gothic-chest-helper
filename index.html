@@ -158,7 +158,7 @@
 
             .mode-tabs {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: repeat(3, 1fr);
                 gap: 8px;
                 margin-bottom: 16px;
             }
@@ -862,6 +862,9 @@
                         <button id="effectModeBtn" class="mode-btn">
                             Shift Effects
                         </button>
+                        <button id="previewModeBtn" class="mode-btn">
+                            Preview
+                        </button>
                     </div>
 
                     <section class="section">
@@ -932,6 +935,26 @@
                         </p>
                     </section>
 
+                    <section id="previewPanel" class="section" hidden>
+                        <h2 class="section-title">Demo Playback</h2>
+                        <div class="solution-controls">
+                            <button id="solutionPrevBtn" class="basic-btn" disabled>
+                                Prev
+                            </button>
+                            <button id="solutionPlayBtn" class="basic-btn" disabled>
+                                Play
+                            </button>
+                            <button id="solutionNextBtn" class="basic-btn" disabled>
+                                Next
+                            </button>
+                        </div>
+
+                        <p class="help">
+                            Calculate a solution, then step through it here.
+                            Initial Layout and Shift Effects stay unchanged.
+                        </p>
+                    </section>
+
                     <div class="actions">
                         <button id="solveBtn" class="primary-btn">
                             Calculate
@@ -984,18 +1007,6 @@
                         <div id="comboText" class="combo">—</div>
                     </div>
 
-                    <div class="solution-controls">
-                        <button id="solutionPrevBtn" class="basic-btn" disabled>
-                            Prev
-                        </button>
-                        <button id="solutionPlayBtn" class="basic-btn" disabled>
-                            Play
-                        </button>
-                        <button id="solutionNextBtn" class="basic-btn" disabled>
-                            Next
-                        </button>
-                    </div>
-
                     <div id="steps" class="steps"></div>
                 </aside>
             </div>
@@ -1021,6 +1032,7 @@
 
             const MODE_SETUP = "setup";
             const MODE_EFFECTS = "effects";
+            const MODE_PREVIEW = "preview";
             const TEMPLATE_ALPHABET =
                 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
             const DEFAULT_TEMPLATE_CODE = "EDDDDDCBBBBBCBBBBBCBBBBBCBBBBBC";
@@ -1046,7 +1058,9 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
             let plateCount = 5;
             let activePlate = 0;
 
-            let positions = [4, 4, 4, 4, 4];
+            let initialPositions = [4, 4, 4, 4, 4];
+            let shiftPositions = [...initialPositions];
+            let demoPositions = [...initialPositions];
 
             /**
              * effectsRight[row][col]
@@ -1058,6 +1072,7 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
             const setupModeBtn = document.getElementById("setupModeBtn");
             const effectModeBtn = document.getElementById("effectModeBtn");
+            const previewModeBtn = document.getElementById("previewModeBtn");
             const templateSelect = document.getElementById("templateSelect");
             const templateCode = document.getElementById("templateCode");
             const importTemplateBtn =
@@ -1066,6 +1081,7 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
             const setupPanel = document.getElementById("setupPanel");
             const effectPanel = document.getElementById("effectPanel");
+            const previewPanel = document.getElementById("previewPanel");
 
             const plateMinus = document.getElementById("plateMinus");
             const platePlus = document.getElementById("platePlus");
@@ -1156,6 +1172,9 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
             effectModeBtn.addEventListener("click", () =>
                 setMode(MODE_EFFECTS),
             );
+            previewModeBtn.addEventListener("click", () =>
+                setMode(MODE_PREVIEW),
+            );
 
             plateMinus.addEventListener("click", () =>
                 setPlateCount(plateCount - 1),
@@ -1241,7 +1260,7 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
             function encodeTemplate() {
                 let code = encodeValue(plateCount, 1);
 
-                positions.forEach((position) => {
+                initialPositions.forEach((position) => {
                     code += encodeValue(position, MIN);
                 });
 
@@ -1332,7 +1351,9 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
             function applyTemplate(template) {
                 plateCount = template.plateCount;
-                positions = [...template.positions];
+                initialPositions = [...template.positions];
+                shiftPositions = [...initialPositions];
+                demoPositions = [...initialPositions];
                 effectsRight = template.effectsRight.map((row) => [...row]);
                 activePlate = Math.min(activePlate, plateCount - 1);
 
@@ -1505,9 +1526,14 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
                 setupModeBtn.classList.toggle("active", mode === MODE_SETUP);
                 effectModeBtn.classList.toggle("active", mode === MODE_EFFECTS);
+                previewModeBtn.classList.toggle(
+                    "active",
+                    mode === MODE_PREVIEW,
+                );
 
                 setupPanel.hidden = mode !== MODE_SETUP;
                 effectPanel.hidden = mode !== MODE_EFFECTS;
+                previewPanel.hidden = mode !== MODE_PREVIEW;
 
                 render();
             }
@@ -1517,9 +1543,24 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 syncTemplateReadonly();
                 plateCount = Math.max(1, Math.min(10, nextCount));
 
-                positions = Array.from({ length: plateCount }, (_, index) => {
-                    return positions[index] ?? TARGET;
-                });
+                initialPositions = Array.from(
+                    { length: plateCount },
+                    (_, index) => {
+                        return initialPositions[index] ?? TARGET;
+                    },
+                );
+                shiftPositions = Array.from(
+                    { length: plateCount },
+                    (_, index) => {
+                        return shiftPositions[index] ?? initialPositions[index];
+                    },
+                );
+                demoPositions = Array.from(
+                    { length: plateCount },
+                    (_, index) => {
+                        return demoPositions[index] ?? initialPositions[index];
+                    },
+                );
 
                 const oldEffects = effectsRight;
 
@@ -1545,14 +1586,20 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 renderEffectList();
                 renderPlateStack();
                 renderAxisScale();
-                renderStatePreview(positions, positions);
+                const displayPositions = getDisplayPositions();
+                if (mode === MODE_PREVIEW && solutionTimeline.length > 0) {
+                    const stage = solutionTimeline[activeSolutionStage];
+                    renderStatePreview(stage.before, demoPositions);
+                } else {
+                    renderStatePreview(displayPositions, displayPositions);
+                }
                 syncTemplateCode();
             }
 
             function renderSetupPositions() {
                 positionsEl.innerHTML = "";
 
-                positions.forEach((position, index) => {
+                initialPositions.forEach((position, index) => {
                     const row = document.createElement("div");
                     row.className = "position-row";
 
@@ -1677,6 +1724,7 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
             function renderPlateStack() {
                 plateStackEl.innerHTML = "";
+                const displayPositions = getDisplayPositions();
 
                 for (let index = 0; index < plateCount; index++) {
                     const plate = document.createElement("div");
@@ -1692,7 +1740,9 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                     const stackX = index * stackStepX;
                     const stackY = index * stackStepY;
 
-                    const [moveX, moveY] = getPlateMoveOffset(positions[index]);
+                    const [moveX, moveY] = getPlateMoveOffset(
+                        displayPositions[index],
+                    );
 
                     plate.style.setProperty(
                         "--stack-x",
@@ -1729,11 +1779,11 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
 
                     const position = document.createElement("div");
                     position.className = "plate-position";
-                    position.textContent = String(positions[index]);
+                    position.textContent = String(displayPositions[index]);
 
                     const targetDot = document.createElement("div");
                     targetDot.className =
-                        positions[index] === TARGET
+                        displayPositions[index] === TARGET
                             ? "plate-target-dot target"
                             : "plate-target-dot offset";
                     targetDot.style.setProperty(
@@ -1812,7 +1862,13 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
             function changeInitialPosition(index, delta) {
                 templateSelect.value = "";
                 syncTemplateReadonly();
-                positions[index] = clamp(positions[index] + delta, MIN, MAX);
+                initialPositions[index] = clamp(
+                    initialPositions[index] + delta,
+                    MIN,
+                    MAX,
+                );
+                shiftPositions = [...initialPositions];
+                demoPositions = [...initialPositions];
                 clearSolution();
                 render();
             }
@@ -1822,9 +1878,10 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 syncTemplateReadonly();
                 effectsRight[activePlate][affectedPlate] = value;
 
-                const preview = applyMove(positions, activePlate, +1);
+                clearSolution({ resetStatus: false });
+                const preview = applyMove(shiftPositions, activePlate, +1);
                 render();
-                renderStatePreview(positions, preview ?? positions);
+                renderStatePreview(shiftPositions, preview ?? shiftPositions);
 
                 statusTextEl.textContent = `Effect preview P${activePlate + 1}R`;
                 statusTextEl.classList.remove("error");
@@ -1874,6 +1931,18 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                     cell.textContent = String(value);
                     afterStateEl.appendChild(cell);
                 });
+            }
+
+            function getDisplayPositions() {
+                if (mode === MODE_SETUP) {
+                    return initialPositions;
+                }
+
+                if (mode === MODE_EFFECTS) {
+                    return shiftPositions;
+                }
+
+                return demoPositions;
             }
 
             function applyMove(state, plateIndex, direction) {
@@ -2157,9 +2226,11 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 const stage = solutionTimeline[nextStageIndex];
 
                 activeSolutionStage = nextStageIndex;
-                positions = [...stage.state];
-                renderPlateStack();
-                renderStatePreview(stage.before, stage.after);
+                demoPositions = [...stage.state];
+                if (mode === MODE_PREVIEW) {
+                    renderPlateStack();
+                    renderStatePreview(stage.before, demoPositions);
+                }
 
                 stepsEl.querySelectorAll(".step-card").forEach((card) => {
                     card.classList.toggle(
@@ -2241,7 +2312,8 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
             }
 
             function solve() {
-                const initialState = [...positions];
+                const initialState = [...initialPositions];
+                demoPositions = [...initialState];
                 const solution = findSolution(initialState);
 
                 clearSolution({ resetStatus: false });
@@ -2285,6 +2357,7 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 solutionSteps = [];
                 solutionTimeline = [];
                 activeSolutionStage = 0;
+                demoPositions = [...initialPositions];
 
                 if (resetStatus) {
                     statusTextEl.textContent = "Waiting for setup";
@@ -2304,7 +2377,9 @@ New Camp #2|FADDADACBBBBBBCBABABACBBBBBBCBABBBBCBBBABCC
                 mode = MODE_SETUP;
                 plateCount = 5;
                 activePlate = 0;
-                positions = [4, 4, 4, 4, 4];
+                initialPositions = [4, 4, 4, 4, 4];
+                shiftPositions = [...initialPositions];
+                demoPositions = [...initialPositions];
                 effectsRight = createIdentityEffects(plateCount);
 
                 clearSolution();
