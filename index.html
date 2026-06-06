@@ -1,0 +1,2101 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Lockpicking Solver</title>
+
+        <style>
+            :root {
+                --bg: #11100e;
+                --panel: #1a1815;
+                --panel-2: #252119;
+                --text: #eadfc7;
+                --muted: #a99d86;
+                --gold: #d0a85d;
+                --green: #79c96a;
+                --red: #d56d63;
+                --blue: #7bb2e0;
+                --border: rgba(208, 168, 93, 0.32);
+
+                --plate-width: clamp(165px, 30vw, 240px);
+                --plate-aspect: 629 / 695;
+                --plate-step-x: 24px;
+                --plate-step-y: 11.5px;
+                --plate-target-dot-x: 43.6%;
+                --plate-target-dot-y: 21.2%;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                min-height: 100vh;
+                color: var(--text);
+                font-family: Georgia, "Times New Roman", serif;
+                background:
+                    radial-gradient(
+                        circle at 50% 0%,
+                        rgba(208, 168, 93, 0.14),
+                        transparent 32%
+                    ),
+                    linear-gradient(180deg, #1c1a16, #090908);
+                overflow-x: hidden;
+            }
+
+            button {
+                font: inherit;
+                cursor: pointer;
+            }
+
+            input,
+            select {
+                font: inherit;
+            }
+
+            .app {
+                width: min(1420px, calc(100% - 32px));
+                margin: 0 auto;
+                padding: 24px 0;
+            }
+
+            .layout {
+                display: grid;
+                grid-template-columns: 340px 1fr 390px;
+                gap: 18px;
+            }
+
+            @media (max-width: 1200px) {
+                .layout {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .panel {
+                position: relative;
+                padding: 20px;
+                min-height: 300px;
+                background:
+                    linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+                    var(--panel);
+                border: 1px solid var(--border);
+                box-shadow:
+                    0 18px 48px rgba(0, 0, 0, 0.45),
+                    inset 0 0 28px rgba(0, 0, 0, 0.45);
+            }
+
+            .title {
+                margin: 0;
+                color: #f1d28d;
+                font-size: 26px;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+            }
+
+            .subtitle {
+                margin: 5px 0 20px;
+                color: var(--muted);
+                font-size: 15px;
+            }
+
+            .section {
+                margin-top: 20px;
+                padding-top: 16px;
+                border-top: 1px solid var(--border);
+            }
+
+            .section-title {
+                margin: 0 0 12px;
+                color: #d9bc7a;
+                font-size: 16px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .mode-tabs {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+
+            .mode-btn,
+            .basic-btn {
+                min-height: 42px;
+                color: var(--text);
+                background: linear-gradient(180deg, #30291e, #17140f);
+                border: 1px solid var(--border);
+                box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+            }
+
+            .mode-btn.active {
+                color: #120d05;
+                background: linear-gradient(180deg, #e0bd72, #9f7130);
+                border-color: #f0ca7a;
+            }
+
+            .template-grid {
+                display: grid;
+                gap: 8px;
+            }
+
+            .template-grid label {
+                display: grid;
+                gap: 5px;
+                color: var(--muted);
+                font-size: 13px;
+            }
+
+            .template-grid input,
+            .template-grid select {
+                min-height: 38px;
+                width: 100%;
+                padding: 7px 9px;
+                color: var(--text);
+                background: #11100e;
+                border: 1px solid var(--border);
+                outline: none;
+            }
+
+            .template-grid input:focus,
+            .template-grid select:focus {
+                border-color: rgba(208, 168, 93, 0.72);
+            }
+
+            .template-grid input[readonly] {
+                color: var(--muted);
+            }
+
+            .template-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .plate-count {
+                display: grid;
+                grid-template-columns: 46px 1fr 46px;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .value-box {
+                min-height: 42px;
+                display: grid;
+                place-items: center;
+                color: #f5dfaa;
+                background: #11100e;
+                border: 1px solid var(--border);
+                font-size: 22px;
+            }
+
+            .position-list,
+            .effect-list {
+                display: grid;
+                gap: 10px;
+            }
+
+            .position-row,
+            .effect-row {
+                display: grid;
+                grid-template-columns: 42px 42px 1fr 42px;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .effect-row {
+                grid-template-columns: 42px 1fr 72px;
+            }
+
+            .plate-name {
+                color: #e3c987;
+                font-size: 17px;
+            }
+
+            .scale {
+                position: relative;
+                height: 34px;
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                align-items: end;
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+            .scale::before {
+                content: "";
+                position: absolute;
+                left: 4px;
+                right: 4px;
+                top: 12px;
+                height: 1px;
+                background: var(--border);
+            }
+
+            .scale span {
+                position: relative;
+                text-align: center;
+            }
+
+            .scale span::before {
+                content: "";
+                position: absolute;
+                top: -13px;
+                left: 50%;
+                width: 1px;
+                height: 10px;
+                background: rgba(234, 223, 199, 0.35);
+            }
+
+            .scale span.active {
+                color: #f6d98b;
+            }
+
+            .scale span.active::after {
+                content: "";
+                position: absolute;
+                top: -20px;
+                left: 50%;
+                width: 11px;
+                height: 11px;
+                transform: translateX(-50%) rotate(45deg);
+                background: var(--gold);
+                box-shadow: 0 0 10px rgba(255, 208, 95, 0.8);
+            }
+
+            .effect-value {
+                min-height: 36px;
+                display: grid;
+                place-items: center;
+                color: var(--text);
+                background: #11100e;
+                border: 1px solid var(--border);
+                font-family: Consolas, Monaco, monospace;
+            }
+
+            .effect-value.negative {
+                color: var(--blue);
+            }
+
+            .effect-value.positive {
+                color: var(--red);
+            }
+
+            .effect-value.zero {
+                color: var(--muted);
+            }
+
+            .active-row {
+                outline: 1px solid rgba(208, 168, 93, 0.75);
+                outline-offset: 4px;
+            }
+
+            .actions {
+                display: grid;
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            .primary-btn {
+                min-height: 52px;
+                color: #151008;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                background: linear-gradient(180deg, #e2bd6f, #9d6e2d);
+                border: 1px solid #f0ca7a;
+            }
+
+            .help {
+                margin: 12px 0 0;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.45;
+            }
+
+            .lock-title {
+                margin: 0 0 16px;
+                text-align: center;
+                color: #f1d28d;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                font-size: 24px;
+            }
+
+            .lock-area {
+                position: relative;
+                min-height: 640px;
+                overflow: hidden;
+                border: 1px solid var(--border);
+                background:
+                    radial-gradient(
+                        circle at 50% 42%,
+                        rgba(208, 168, 93, 0.08),
+                        transparent 42%
+                    ),
+                    linear-gradient(180deg, #191814, #0d0c0a);
+            }
+
+            .target-axis {
+                position: absolute;
+                left: 50%;
+                top: 40px;
+                bottom: 40px;
+                width: 2px;
+                transform: translateX(-50%);
+                background: rgba(208, 168, 93, 0.45);
+                box-shadow: 0 0 16px rgba(208, 168, 93, 0.4);
+                z-index: 1;
+            }
+
+            .target-axis::before {
+                content: "position 4";
+                position: absolute;
+                top: 0;
+                left: 12px;
+                color: #f1d28d;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+
+            .plate-stack {
+                position: absolute;
+                left: 50%;
+                top: 70px;
+                width: var(--plate-width);
+                height: 430px;
+                transform: translateX(-50%);
+                z-index: 2;
+            }
+
+            .plate {
+                position: absolute;
+                left: var(--stack-x);
+                bottom: var(--stack-y);
+                width: var(--plate-width);
+                aspect-ratio: var(--plate-aspect);
+                background: url("src/plate.png") no-repeat center / contain;
+                transform: translate(var(--move-x), var(--move-y));
+
+                transform-origin: center;
+                filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(var(--brightness));
+
+                transition:
+                    left 160ms ease,
+                    bottom 160ms ease,
+                    transform 160ms ease,
+                    filter 160ms ease;
+
+                user-select: none;
+                pointer-events: none;
+            }
+
+            .plate::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                z-index: 1;
+                background: var(--plate-tint, transparent);
+                opacity: var(--plate-tint-opacity, 0);
+                -webkit-mask: url("src/plate.png") no-repeat center / contain;
+                mask: url("src/plate.png") no-repeat center / contain;
+                mix-blend-mode: screen;
+                pointer-events: none;
+            }
+
+            .plate:hover {
+                filter: drop-shadow(0 0 14px rgba(208, 168, 93, 0.45))
+                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.12);
+            }
+
+            .plate.active {
+                --plate-tint: rgba(126, 188, 232, 0.28);
+                --plate-tint-opacity: 1;
+                filter: drop-shadow(0 0 20px rgba(230, 190, 95, 0.8))
+                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.22);
+            }
+
+            .plate.effect-negative {
+                --plate-tint: rgba(126, 188, 232, 0.24);
+                --plate-tint-opacity: 1;
+                filter: drop-shadow(0 0 18px rgba(100, 170, 230, 0.85))
+                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.12);
+            }
+
+            .plate.effect-positive {
+                --plate-tint: rgba(225, 100, 85, 0.24);
+                --plate-tint-opacity: 1;
+                filter: drop-shadow(0 0 18px rgba(225, 100, 85, 0.85))
+                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.12);
+            }
+
+            .plate-label {
+                position: absolute;
+                z-index: 2;
+                left: 10px;
+                top: 10px;
+                min-width: 36px;
+                min-height: 26px;
+                display: grid;
+                place-items: center;
+                color: #f4d88d;
+                background: rgba(0, 0, 0, 0.58);
+                border: 1px solid rgba(208, 168, 93, 0.45);
+                font-size: 15px;
+                pointer-events: none;
+                display: none;
+            }
+
+            .plate-position {
+                position: absolute;
+                z-index: 2;
+                right: 12px;
+                top: 10px;
+                min-width: 32px;
+                min-height: 26px;
+                display: grid;
+                place-items: center;
+                color: #f4d88d;
+                background: rgba(0, 0, 0, 0.58);
+                border: 1px solid rgba(208, 168, 93, 0.45);
+                font-size: 15px;
+                pointer-events: none;
+                display: none;
+            }
+
+            .plate-effect-badge {
+                position: absolute;
+                z-index: 2;
+                right: 52px;
+                top: 10px;
+                min-width: 32px;
+                min-height: 26px;
+                display: none;
+                place-items: center;
+                background: rgba(0, 0, 0, 0.68);
+                border: 1px solid rgba(208, 168, 93, 0.45);
+                font-family: Consolas, Monaco, monospace;
+                pointer-events: none;
+                display: none;
+            }
+
+            .plate-effect-badge.visible {
+                /*display: grid;*/
+            }
+
+            .plate-effect-badge.negative {
+                color: var(--blue);
+            }
+
+            .plate-effect-badge.positive {
+                color: var(--red);
+            }
+
+            .plate-effect-badge.zero {
+                color: var(--muted);
+            }
+
+            .plate-target-dot {
+                position: absolute;
+                z-index: 2;
+                left: var(--plate-target-dot-x);
+                top: var(--plate-target-dot-y);
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                transform: translate(
+                        var(--target-dot-offset-x, 0),
+                        var(--target-dot-offset-y, 0)
+                    )
+                    rotate3d(2, -1, 1, 55deg);
+                background: rgba(220, 82, 82, 0.34);
+                border: 1px solid rgba(255, 150, 150, 0.52);
+                box-shadow:
+                    0 0 10px rgba(220, 82, 82, 0.38),
+                    inset 0 0 8px rgba(255, 190, 190, 0.18);
+                pointer-events: none;
+            }
+
+            .plate-target-dot.offset {
+                background: rgba(224, 184, 82, 0.34);
+                border-color: rgba(255, 222, 142, 0.52);
+                box-shadow:
+                    0 0 10px rgba(224, 184, 82, 0.38),
+                    inset 0 0 8px rgba(255, 236, 184, 0.18);
+            }
+
+            .axis-scale {
+                position: absolute;
+                left: 50%;
+                bottom: 24px;
+                transform: translateX(-50%);
+                display: grid;
+                grid-template-columns: repeat(7, 42px);
+                gap: 4px;
+                z-index: 3;
+            }
+
+            .axis-cell {
+                min-height: 34px;
+                display: grid;
+                place-items: center;
+                color: var(--muted);
+                border: 1px solid rgba(208, 168, 93, 0.22);
+                background: rgba(0, 0, 0, 0.25);
+            }
+
+            .axis-cell.target {
+                color: #f1d28d;
+                border-color: rgba(208, 168, 93, 0.7);
+                box-shadow: inset 0 0 14px rgba(208, 168, 93, 0.18);
+            }
+
+            .preview-state {
+                margin-top: 16px;
+                display: grid;
+                grid-template-columns: 1fr auto 1fr;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .state-box {
+                padding: 12px;
+                border: 1px solid var(--border);
+                background: rgba(0, 0, 0, 0.24);
+            }
+
+            .state-title {
+                margin-bottom: 8px;
+                color: var(--muted);
+                text-transform: uppercase;
+                font-size: 13px;
+            }
+
+            .state-row {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
+            }
+
+            .state-cell {
+                min-height: 38px;
+                display: grid;
+                place-items: center;
+                background: #11100e;
+                border: 1px solid rgba(208, 168, 93, 0.25);
+                font-family: Consolas, Monaco, monospace;
+            }
+
+            .state-cell.changed {
+                color: var(--green);
+                border-color: rgba(121, 201, 106, 0.6);
+            }
+
+            .big-arrow {
+                color: var(--gold);
+                font-size: 28px;
+            }
+
+            .solution-card {
+                padding: 16px;
+                border: 1px solid var(--border);
+                background: rgba(0, 0, 0, 0.24);
+                text-align: center;
+            }
+
+            .status {
+                margin-bottom: 10px;
+                color: var(--green);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .status.error {
+                color: var(--red);
+            }
+
+            .combo {
+                color: #f0c76b;
+                font-size: 20px;
+                word-break: break-word;
+            }
+
+            .solution-controls {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .solution-controls button:disabled {
+                cursor: not-allowed;
+                opacity: 0.42;
+            }
+
+            .steps {
+                display: grid;
+                gap: 10px;
+                margin-top: 16px;
+                max-height: 610px;
+                overflow: auto;
+                padding-right: 4px;
+            }
+
+            .step-card {
+                width: 100%;
+                padding: 12px;
+                color: var(--text);
+                text-align: left;
+                border: 1px solid rgba(208, 168, 93, 0.28);
+                background: rgba(0, 0, 0, 0.22);
+            }
+
+            .step-card.active {
+                border-color: rgba(125, 178, 224, 0.86);
+                background: rgba(78, 128, 172, 0.22);
+                box-shadow:
+                    0 0 18px rgba(90, 150, 210, 0.22),
+                    inset 0 0 16px rgba(90, 150, 210, 0.12);
+            }
+
+            .step-head {
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+                margin-bottom: 8px;
+                color: #7fb9e7;
+            }
+
+            .step-head.right {
+                color: var(--red);
+            }
+
+            .move-token {
+                display: inline-block;
+                padding: 2px 7px 3px;
+                border: 1px solid rgba(234, 223, 199, 0.22);
+                background: rgba(0, 0, 0, 0.22);
+                font-family: Consolas, Monaco, monospace;
+                font-size: 0.92em;
+                line-height: 1.2;
+                white-space: nowrap;
+            }
+
+            .move-token.left {
+                color: #9dde8d;
+                border-color: rgba(121, 201, 106, 0.52);
+                background: rgba(72, 130, 58, 0.18);
+            }
+
+            .move-token.right {
+                color: #ef948b;
+                border-color: rgba(213, 109, 99, 0.56);
+                background: rgba(145, 63, 56, 0.2);
+            }
+
+            .move-token.active {
+                color: #d8ecff;
+                border-color: rgba(125, 178, 224, 0.92);
+                background: rgba(78, 128, 172, 0.42);
+                box-shadow:
+                    0 0 12px rgba(90, 150, 210, 0.34),
+                    inset 0 0 10px rgba(160, 210, 255, 0.12);
+            }
+
+            .move-separator {
+                color: var(--muted);
+                margin: 0 5px;
+            }
+
+            .step-state {
+                color: var(--muted);
+                font-family: Consolas, Monaco, monospace;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <main class="app">
+            <div class="layout">
+                <aside class="panel">
+                    <h1 class="title">Lockpicking Solver</h1>
+                    <p class="subtitle">
+                        Configure the lock and calculate a solution
+                    </p>
+
+                    <div class="mode-tabs">
+                        <button id="setupModeBtn" class="mode-btn active">
+                            Initial Layout
+                        </button>
+                        <button id="effectModeBtn" class="mode-btn">
+                            Shift Effects
+                        </button>
+                    </div>
+
+                    <section class="section">
+                        <h2 class="section-title">Templates</h2>
+                        <div class="template-grid">
+                            <label>
+                                Preset
+                                <select id="templateSelect"></select>
+                            </label>
+                            <label>
+                                Code
+                                <input
+                                    id="templateCode"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                />
+                            </label>
+                            <div class="template-actions">
+                                <button
+                                    id="importTemplateBtn"
+                                    class="basic-btn"
+                                >
+                                    Import
+                                </button>
+                                <button id="copyTemplateBtn" class="basic-btn">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">Plate Count</h2>
+
+                        <div class="plate-count">
+                            <button id="plateMinus" class="basic-btn">−</button>
+                            <div id="plateCountView" class="value-box">5</div>
+                            <button id="platePlus" class="basic-btn">+</button>
+                        </div>
+                    </section>
+
+                    <section id="setupPanel" class="section">
+                        <h2 class="section-title">Initial Positions</h2>
+                        <div id="positions" class="position-list"></div>
+
+                        <p class="help">
+                            Left-click a plate in the center to move it left.
+                            Right-click to move it right. The target is position
+                            4.
+                        </p>
+                    </section>
+
+                    <section id="effectPanel" class="section" hidden>
+                        <h2 class="section-title">Active Plate</h2>
+                        <div id="activePlateList" class="position-list"></div>
+
+                        <h2 class="section-title" style="margin-top: 18px">
+                            Plate Reactions
+                        </h2>
+                        <div id="effectList" class="effect-list"></div>
+
+                        <p class="help">
+                            Select the active plate, then click plates in the
+                            center: left button = -1, middle button = 0, right
+                            button = +1. This defines how plates react when the
+                            active plate moves right. Moving left uses the
+                            inverse effect.
+                        </p>
+                    </section>
+
+                    <div class="actions">
+                        <button id="solveBtn" class="primary-btn">
+                            Calculate
+                        </button>
+                        <button id="resetBtn" class="basic-btn">Reset</button>
+                    </div>
+                </aside>
+
+                <section class="panel">
+                    <h2 class="lock-title">Lock Mechanism</h2>
+
+                    <div class="lock-area" id="lockArea">
+                        <div class="plate-stack" id="plateStack"></div>
+                        <div class="axis-scale" id="axisScale"></div>
+                    </div>
+
+                    <div class="preview-state">
+                        <div class="state-box">
+                            <div class="state-title">Before Move</div>
+                            <div id="beforeState" class="state-row"></div>
+                        </div>
+
+                        <div class="big-arrow">→</div>
+
+                        <div class="state-box">
+                            <div class="state-title">After Move</div>
+                            <div id="afterState" class="state-row"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="panel">
+                    <h2 class="lock-title">Solution</h2>
+
+                    <div class="solution-card">
+                        <div id="statusText" class="status">
+                            Waiting for setup
+                        </div>
+                        <div id="comboText" class="combo">—</div>
+                    </div>
+
+                    <div class="solution-controls">
+                        <button id="solutionPrevBtn" class="basic-btn" disabled>
+                            Prev
+                        </button>
+                        <button id="solutionPlayBtn" class="basic-btn" disabled>
+                            Play
+                        </button>
+                        <button id="solutionNextBtn" class="basic-btn" disabled>
+                            Next
+                        </button>
+                    </div>
+
+                    <div id="steps" class="steps"></div>
+                </aside>
+            </div>
+        </main>
+
+        <script>
+            const TARGET = 4;
+            const MIN = 1;
+            const MAX = 7;
+
+            const MODE_SETUP = "setup";
+            const MODE_EFFECTS = "effects";
+            const TEMPLATE_ALPHABET =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+            const DEFAULT_TEMPLATE_CODE = "EDDDDDCBBBBBCBBBBBCBBBBBCBBBBBC";
+            const PRESET_TEMPLATE_LINES = `
+Custom preset|EDDDDDCBBBBBCBBBBBCBBBBBCBBBBBC
+Old Cave - Ulbert #1|FABFBDFCCBBABACBABCBBCBBBBABCACBBCBCBBBBBCC
+Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
+            `;
+            const PLATE_MOVE_OFFSETS = {
+                "-3": [-49, -25],
+                "-2": [-33, -17],
+                "-1": [-17, -9],
+                0: [0, 0],
+                1: [16, 8],
+                2: [32, 16],
+                3: [47, 23],
+            };
+
+            let mode = MODE_SETUP;
+            let plateCount = 5;
+            let activePlate = 0;
+
+            let positions = [4, 4, 4, 4, 4];
+
+            /**
+             * effectsRight[row][col]
+             * row: which plate moves right.
+             * col: which plate reacts.
+             * value: -1, 0, +1.
+             */
+            let effectsRight = createIdentityEffects(plateCount);
+
+            const setupModeBtn = document.getElementById("setupModeBtn");
+            const effectModeBtn = document.getElementById("effectModeBtn");
+            const templateSelect = document.getElementById("templateSelect");
+            const templateCode = document.getElementById("templateCode");
+            const importTemplateBtn =
+                document.getElementById("importTemplateBtn");
+            const copyTemplateBtn = document.getElementById("copyTemplateBtn");
+
+            const setupPanel = document.getElementById("setupPanel");
+            const effectPanel = document.getElementById("effectPanel");
+
+            const plateMinus = document.getElementById("plateMinus");
+            const platePlus = document.getElementById("platePlus");
+            const plateCountView = document.getElementById("plateCountView");
+
+            const positionsEl = document.getElementById("positions");
+            const activePlateListEl =
+                document.getElementById("activePlateList");
+            const effectListEl = document.getElementById("effectList");
+
+            const plateStackEl = document.getElementById("plateStack");
+            const axisScaleEl = document.getElementById("axisScale");
+
+            const beforeStateEl = document.getElementById("beforeState");
+            const afterStateEl = document.getElementById("afterState");
+
+            const solveBtn = document.getElementById("solveBtn");
+            const resetBtn = document.getElementById("resetBtn");
+
+            const statusTextEl = document.getElementById("statusText");
+            const comboTextEl = document.getElementById("comboText");
+            const stepsEl = document.getElementById("steps");
+            const solutionPrevBtn = document.getElementById("solutionPrevBtn");
+            const solutionPlayBtn = document.getElementById("solutionPlayBtn");
+            const solutionNextBtn = document.getElementById("solutionNextBtn");
+            const plateHitCanvas = document.createElement("canvas");
+            const plateHitContext = plateHitCanvas.getContext("2d", {
+                willReadFrequently: true,
+            });
+
+            let plateHitImage = null;
+            let plateHitImageReady = false;
+            let plateHitCanvasReadable = false;
+            let solutionSteps = [];
+            let solutionTimeline = [];
+            let activeSolutionStage = 0;
+            let solutionPlayTimer = null;
+            let isSolutionPlaying = false;
+
+            const presetTemplates = parsePresetTemplates(PRESET_TEMPLATE_LINES);
+
+            function cssNumber(name) {
+                return Number.parseFloat(
+                    getComputedStyle(document.documentElement)
+                        .getPropertyValue(name)
+                        .trim(),
+                );
+            }
+
+            function getPlateMoveOffset(position) {
+                const delta = clamp(
+                    position - TARGET,
+                    MIN - TARGET,
+                    MAX - TARGET,
+                );
+                return PLATE_MOVE_OFFSETS[delta] ?? [0, 0];
+            }
+
+            function loadPlateHitImage() {
+                plateHitImage = new Image();
+                plateHitImage.src = "src/plate.png";
+
+                plateHitImage.onload = () => {
+                    document.documentElement.style.setProperty(
+                        "--plate-aspect",
+                        `${plateHitImage.naturalWidth} / ${plateHitImage.naturalHeight}`,
+                    );
+                    plateHitCanvas.width = plateHitImage.naturalWidth;
+                    plateHitCanvas.height = plateHitImage.naturalHeight;
+                    plateHitContext.clearRect(
+                        0,
+                        0,
+                        plateHitCanvas.width,
+                        plateHitCanvas.height,
+                    );
+                    plateHitContext.drawImage(plateHitImage, 0, 0);
+                    try {
+                        plateHitContext.getImageData(0, 0, 1, 1);
+                        plateHitCanvasReadable = true;
+                    } catch (error) {
+                        plateHitCanvasReadable = false;
+                    }
+                    plateHitImageReady = true;
+                };
+            }
+            setupModeBtn.addEventListener("click", () => setMode(MODE_SETUP));
+            effectModeBtn.addEventListener("click", () =>
+                setMode(MODE_EFFECTS),
+            );
+
+            plateMinus.addEventListener("click", () =>
+                setPlateCount(plateCount - 1),
+            );
+            platePlus.addEventListener("click", () =>
+                setPlateCount(plateCount + 1),
+            );
+
+            solveBtn.addEventListener("click", solve);
+            resetBtn.addEventListener("click", reset);
+            solutionPrevBtn.addEventListener("click", () => {
+                stopSolutionPlayback();
+                setActiveSolutionStage(activeSolutionStage - 1);
+            });
+            solutionPlayBtn.addEventListener("click", toggleSolutionPlayback);
+            solutionNextBtn.addEventListener("click", () => {
+                stopSolutionPlayback();
+                setActiveSolutionStage(activeSolutionStage + 1);
+            });
+            templateSelect.addEventListener("change", applySelectedTemplate);
+            templateCode.addEventListener("input", () => {
+                templateSelect.value = "";
+                syncTemplateReadonly();
+            });
+            importTemplateBtn.addEventListener("click", importTemplateCode);
+            copyTemplateBtn.addEventListener("click", copyTemplateCode);
+
+            window.addEventListener("contextmenu", (event) => {
+                if (event.target.closest("#plateStack")) {
+                    event.preventDefault();
+                }
+            });
+            plateStackEl.addEventListener(
+                "mousedown",
+                handlePlateStackMouseDown,
+            );
+
+            plateStackEl.addEventListener("auxclick", (event) => {
+                event.preventDefault();
+            });
+
+            function createIdentityEffects(count) {
+                return Array.from({ length: count }, (_, row) => {
+                    return Array.from({ length: count }, (_, col) =>
+                        row === col ? 1 : 0,
+                    );
+                });
+            }
+
+            function parsePresetTemplates(lines) {
+                return lines
+                    .trim()
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => {
+                        const [name, code] = line.split("|");
+                        return {
+                            name: name.trim(),
+                            code: code.trim(),
+                        };
+                    });
+            }
+
+            function renderTemplateSelect() {
+                templateSelect.innerHTML = "";
+
+                const custom = document.createElement("option");
+                custom.value = "";
+                custom.textContent = "Custom";
+                templateSelect.appendChild(custom);
+
+                presetTemplates.forEach((preset) => {
+                    const option = document.createElement("option");
+                    option.value = preset.code;
+                    option.textContent = preset.name;
+                    templateSelect.appendChild(option);
+                });
+
+                templateSelect.value = DEFAULT_TEMPLATE_CODE;
+            }
+
+            function encodeTemplate() {
+                let code = encodeValue(plateCount, 1);
+
+                positions.forEach((position) => {
+                    code += encodeValue(position, MIN);
+                });
+
+                effectsRight.forEach((row) => {
+                    row.forEach((value) => {
+                        code += encodeValue(value, -1);
+                    });
+                });
+
+                return code;
+            }
+
+            function decodeTemplate(code) {
+                const cleanCode = code.trim();
+                let cursor = 0;
+
+                const nextValue = (offset) => {
+                    if (cursor >= cleanCode.length) {
+                        throw new Error("Template code is too short");
+                    }
+
+                    return decodeValue(cleanCode[cursor++], offset);
+                };
+
+                const nextPlateCount = nextValue(1);
+
+                if (nextPlateCount < 1 || nextPlateCount > 10) {
+                    throw new Error("Invalid plate count");
+                }
+
+                const nextPositions = Array.from(
+                    { length: nextPlateCount },
+                    () => nextValue(MIN),
+                );
+
+                if (
+                    nextPositions.some(
+                        (position) => position < MIN || position > MAX,
+                    )
+                ) {
+                    throw new Error("Invalid initial layout");
+                }
+
+                const nextEffects = Array.from({ length: nextPlateCount }, () =>
+                    Array.from({ length: nextPlateCount }, () => nextValue(-1)),
+                );
+
+                if (
+                    nextEffects.some((row) =>
+                        row.some((value) => value < -1 || value > 1),
+                    )
+                ) {
+                    throw new Error("Invalid shift effects");
+                }
+
+                if (cursor !== cleanCode.length) {
+                    throw new Error("Template code has extra characters");
+                }
+
+                return {
+                    plateCount: nextPlateCount,
+                    positions: nextPositions,
+                    effectsRight: nextEffects,
+                };
+            }
+
+            function encodeValue(value, offset) {
+                return TEMPLATE_ALPHABET[value - offset];
+            }
+
+            function decodeValue(char, offset) {
+                const index = TEMPLATE_ALPHABET.indexOf(char);
+
+                if (index < 0) {
+                    throw new Error(`Invalid template character: ${char}`);
+                }
+
+                return index + offset;
+            }
+
+            function syncTemplateCode() {
+                templateCode.value = encodeTemplate();
+            }
+
+            function syncTemplateReadonly() {
+                templateCode.readOnly = templateSelect.value !== "";
+            }
+
+            function applyTemplate(template) {
+                plateCount = template.plateCount;
+                positions = [...template.positions];
+                effectsRight = template.effectsRight.map((row) => [...row]);
+                activePlate = Math.min(activePlate, plateCount - 1);
+
+                clearSolution();
+                render();
+                syncTemplateCode();
+            }
+
+            function applySelectedTemplate() {
+                if (!templateSelect.value) {
+                    syncTemplateReadonly();
+                    syncTemplateCode();
+                    return;
+                }
+
+                try {
+                    applyTemplate(decodeTemplate(templateSelect.value));
+                    templateCode.value = templateSelect.value;
+                    syncTemplateReadonly();
+                } catch (error) {
+                    statusTextEl.textContent = error.message;
+                    statusTextEl.classList.add("error");
+                }
+            }
+
+            function importTemplateCode() {
+                try {
+                    applyTemplate(decodeTemplate(templateCode.value));
+                    templateSelect.value = "";
+                    syncTemplateReadonly();
+                } catch (error) {
+                    statusTextEl.textContent = error.message;
+                    statusTextEl.classList.add("error");
+                }
+            }
+
+            async function copyTemplateCode() {
+                syncTemplateCode();
+                templateCode.select();
+
+                try {
+                    await navigator.clipboard.writeText(templateCode.value);
+                } catch (error) {
+                    document.execCommand("copy");
+                }
+            }
+
+            function handlePlateStackMouseDown(event) {
+                event.preventDefault();
+
+                if (!plateHitImageReady) {
+                    return;
+                }
+
+                const hit = findTopPlateUnderPointer(
+                    event.clientX,
+                    event.clientY,
+                );
+
+                if (!hit) {
+                    return;
+                }
+
+                handlePlateMouseDown(event, hit.plateIndex);
+            }
+
+            function findTopPlateUnderPointer(clientX, clientY) {
+                const plates = [...plateStackEl.querySelectorAll(".plate")];
+
+                /**
+                 * Walk from the visually top plate to the bottom plate.
+                 * The z-index values already describe the stack order.
+                 */
+                plates.sort((a, b) => {
+                    return Number(b.style.zIndex) - Number(a.style.zIndex);
+                });
+
+                for (const plate of plates) {
+                    const rect = plate.getBoundingClientRect();
+
+                    const insideRect =
+                        clientX >= rect.left &&
+                        clientX <= rect.right &&
+                        clientY >= rect.top &&
+                        clientY <= rect.bottom;
+
+                    if (!insideRect) {
+                        continue;
+                    }
+
+                    const localX = clientX - rect.left;
+                    const localY = clientY - rect.top;
+
+                    const alpha = getPlateAlphaAt(
+                        localX,
+                        localY,
+                        rect.width,
+                        rect.height,
+                    );
+
+                    if (alpha > 20) {
+                        return {
+                            plateIndex: Number(plate.dataset.index),
+                            alpha,
+                        };
+                    }
+                }
+
+                return null;
+            }
+
+            function getPlateAlphaAt(
+                localX,
+                localY,
+                renderedWidth,
+                renderedHeight,
+            ) {
+                const imageWidth = plateHitImage.naturalWidth;
+                const imageHeight = plateHitImage.naturalHeight;
+
+                /**
+                 * Match object-fit: contain so hit testing accounts for
+                 * padding created by mismatched image/container ratios.
+                 */
+                const imageRatio = imageWidth / imageHeight;
+                const renderedRatio = renderedWidth / renderedHeight;
+
+                let drawWidth;
+                let drawHeight;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                if (renderedRatio > imageRatio) {
+                    drawHeight = renderedHeight;
+                    drawWidth = drawHeight * imageRatio;
+                    offsetX = (renderedWidth - drawWidth) / 2;
+                } else {
+                    drawWidth = renderedWidth;
+                    drawHeight = drawWidth / imageRatio;
+                    offsetY = (renderedHeight - drawHeight) / 2;
+                }
+
+                const imageX = ((localX - offsetX) / drawWidth) * imageWidth;
+                const imageY = ((localY - offsetY) / drawHeight) * imageHeight;
+
+                if (
+                    imageX < 0 ||
+                    imageY < 0 ||
+                    imageX >= imageWidth ||
+                    imageY >= imageHeight
+                ) {
+                    return 0;
+                }
+
+                if (!plateHitCanvasReadable) {
+                    return 255;
+                }
+
+                const pixel = plateHitContext.getImageData(
+                    Math.floor(imageX),
+                    Math.floor(imageY),
+                    1,
+                    1,
+                ).data;
+
+                return pixel[3];
+            }
+            function setMode(nextMode) {
+                mode = nextMode;
+
+                setupModeBtn.classList.toggle("active", mode === MODE_SETUP);
+                effectModeBtn.classList.toggle("active", mode === MODE_EFFECTS);
+
+                setupPanel.hidden = mode !== MODE_SETUP;
+                effectPanel.hidden = mode !== MODE_EFFECTS;
+
+                render();
+            }
+
+            function setPlateCount(nextCount) {
+                templateSelect.value = "";
+                syncTemplateReadonly();
+                plateCount = Math.max(1, Math.min(10, nextCount));
+
+                positions = Array.from({ length: plateCount }, (_, index) => {
+                    return positions[index] ?? TARGET;
+                });
+
+                const oldEffects = effectsRight;
+
+                effectsRight = Array.from({ length: plateCount }, (_, row) => {
+                    return Array.from({ length: plateCount }, (_, col) => {
+                        return oldEffects[row]?.[col] ?? (row === col ? 1 : 0);
+                    });
+                });
+
+                if (activePlate >= plateCount) {
+                    activePlate = plateCount - 1;
+                }
+
+                clearSolution();
+                render();
+            }
+
+            function render() {
+                plateCountView.textContent = String(plateCount);
+
+                renderSetupPositions();
+                renderActivePlateSelector();
+                renderEffectList();
+                renderPlateStack();
+                renderAxisScale();
+                renderStatePreview(positions, positions);
+                syncTemplateCode();
+            }
+
+            function renderSetupPositions() {
+                positionsEl.innerHTML = "";
+
+                positions.forEach((position, index) => {
+                    const row = document.createElement("div");
+                    row.className = "position-row";
+
+                    const name = document.createElement("div");
+                    name.className = "plate-name";
+                    name.textContent = `P${index + 1}`;
+
+                    const leftBtn = document.createElement("button");
+                    leftBtn.className = "basic-btn";
+                    leftBtn.textContent = "←";
+                    leftBtn.addEventListener("click", () =>
+                        changeInitialPosition(index, -1),
+                    );
+
+                    const scale = createScale(position);
+
+                    const rightBtn = document.createElement("button");
+                    rightBtn.className = "basic-btn";
+                    rightBtn.textContent = "→";
+                    rightBtn.addEventListener("click", () =>
+                        changeInitialPosition(index, +1),
+                    );
+
+                    row.appendChild(name);
+                    row.appendChild(leftBtn);
+                    row.appendChild(scale);
+                    row.appendChild(rightBtn);
+
+                    positionsEl.appendChild(row);
+                });
+            }
+
+            function createScale(position) {
+                const scale = document.createElement("div");
+                scale.className = "scale";
+
+                for (let value = MIN; value <= MAX; value++) {
+                    const item = document.createElement("span");
+                    item.textContent = String(value);
+
+                    if (value === position) {
+                        item.className = "active";
+                    }
+
+                    scale.appendChild(item);
+                }
+
+                return scale;
+            }
+
+            function renderActivePlateSelector() {
+                activePlateListEl.innerHTML = "";
+
+                for (let index = 0; index < plateCount; index++) {
+                    const row = document.createElement("button");
+                    row.className =
+                        index === activePlate
+                            ? "basic-btn active-row"
+                            : "basic-btn";
+                    row.textContent = `P${index + 1}`;
+                    row.addEventListener("click", () => {
+                        activePlate = index;
+                        render();
+                    });
+
+                    activePlateListEl.appendChild(row);
+                }
+            }
+
+            function renderEffectList() {
+                effectListEl.innerHTML = "";
+
+                for (let index = 0; index < plateCount; index++) {
+                    const value = effectsRight[activePlate][index];
+
+                    const row = document.createElement("div");
+                    row.className = "effect-row";
+
+                    const name = document.createElement("div");
+                    name.className = "plate-name";
+                    name.textContent = `P${index + 1}`;
+
+                    const description = document.createElement("div");
+                    description.textContent = getEffectDescription(value);
+
+                    const valueBox = document.createElement("div");
+                    valueBox.className = `effect-value ${getEffectClass(value)}`;
+                    valueBox.textContent = formatEffect(value);
+
+                    row.appendChild(name);
+                    row.appendChild(description);
+                    row.appendChild(valueBox);
+
+                    effectListEl.appendChild(row);
+                }
+            }
+
+            function renderPlateStack() {
+                plateStackEl.innerHTML = "";
+
+                for (let index = 0; index < plateCount; index++) {
+                    const plate = document.createElement("div");
+                    plate.className = "plate";
+                    plate.dataset.index = String(index);
+
+                    /**
+                     * Deeper plates sit slightly higher and farther right.
+                     * The closest plate keeps the highest z-index.
+                     */
+                    const stackStepX = cssNumber("--plate-step-x");
+                    const stackStepY = cssNumber("--plate-step-y");
+                    const stackX = index * stackStepX;
+                    const stackY = index * stackStepY;
+
+                    const [moveX, moveY] = getPlateMoveOffset(positions[index]);
+
+                    plate.style.setProperty(
+                        "--stack-x",
+                        `${stackX - ((plateCount - 1) * stackStepX) / 2}px`,
+                    );
+                    plate.style.setProperty("--stack-y", `${stackY}px`);
+                    plate.style.setProperty("--move-x", `${moveX}px`);
+                    plate.style.setProperty("--move-y", `${moveY}px`);
+                    plate.style.setProperty(
+                        "--brightness",
+                        String(1 - index * 0.035),
+                    );
+                    plate.style.zIndex = String(plateCount - index);
+
+                    if (mode === MODE_EFFECTS && index === activePlate) {
+                        plate.classList.add("active");
+                    }
+
+                    if (mode === MODE_EFFECTS) {
+                        const effect = effectsRight[activePlate][index];
+
+                        if (effect < 0) {
+                            plate.classList.add("effect-negative");
+                        }
+
+                        if (effect > 0) {
+                            plate.classList.add("effect-positive");
+                        }
+                    }
+
+                    const label = document.createElement("div");
+                    label.className = "plate-label";
+                    label.textContent = `P${index + 1}`;
+
+                    const position = document.createElement("div");
+                    position.className = "plate-position";
+                    position.textContent = String(positions[index]);
+
+                    const targetDot = document.createElement("div");
+                    targetDot.className =
+                        positions[index] === TARGET
+                            ? "plate-target-dot target"
+                            : "plate-target-dot offset";
+                    targetDot.style.setProperty(
+                        "--target-dot-offset-x",
+                        `${-moveX}px`,
+                    );
+                    targetDot.style.setProperty(
+                        "--target-dot-offset-y",
+                        `${-moveY}px`,
+                    );
+
+                    const effectBadge = document.createElement("div");
+                    const effect = effectsRight[activePlate][index];
+                    effectBadge.className = `plate-effect-badge ${getEffectClass(effect)}`;
+
+                    if (mode === MODE_EFFECTS) {
+                        effectBadge.classList.add("visible");
+                        effectBadge.textContent = formatEffect(effect);
+                    }
+
+                    plate.appendChild(label);
+                    plate.appendChild(position);
+                    plate.appendChild(targetDot);
+                    plate.appendChild(effectBadge);
+
+                    plateStackEl.appendChild(plate);
+                }
+            }
+
+            function renderAxisScale() {
+                axisScaleEl.innerHTML = "";
+
+                for (let value = MIN; value <= MAX; value++) {
+                    const cell = document.createElement("div");
+                    cell.className =
+                        value === TARGET ? "axis-cell target" : "axis-cell";
+                    cell.textContent = String(value);
+                    axisScaleEl.appendChild(cell);
+                }
+            }
+
+            function handlePlateMouseDown(event, plateIndex) {
+                event.preventDefault();
+
+                if (mode === MODE_SETUP) {
+                    if (event.button === 0) {
+                        changeInitialPosition(plateIndex, -1);
+                        return;
+                    }
+
+                    if (event.button === 2) {
+                        changeInitialPosition(plateIndex, +1);
+                        return;
+                    }
+
+                    return;
+                }
+
+                if (mode === MODE_EFFECTS) {
+                    if (event.button === 0) {
+                        setEffect(plateIndex, -1);
+                        return;
+                    }
+
+                    if (event.button === 1) {
+                        setEffect(plateIndex, 0);
+                        return;
+                    }
+
+                    if (event.button === 2) {
+                        setEffect(plateIndex, +1);
+                    }
+                }
+            }
+
+            function changeInitialPosition(index, delta) {
+                templateSelect.value = "";
+                syncTemplateReadonly();
+                positions[index] = clamp(positions[index] + delta, MIN, MAX);
+                clearSolution();
+                render();
+            }
+
+            function setEffect(affectedPlate, value) {
+                templateSelect.value = "";
+                syncTemplateReadonly();
+                effectsRight[activePlate][affectedPlate] = value;
+
+                const preview = applyMove(positions, activePlate, +1);
+                render();
+                renderStatePreview(positions, preview ?? positions);
+
+                statusTextEl.textContent = `Effect preview P${activePlate + 1}R`;
+                statusTextEl.classList.remove("error");
+                comboTextEl.textContent = `P${activePlate + 1}R`;
+            }
+
+            function getEffectDescription(value) {
+                if (value < 0) {
+                    return "moves left when this plate moves right";
+                }
+
+                if (value > 0) {
+                    return "moves right when this plate moves right";
+                }
+
+                return "does not move";
+            }
+
+            function getEffectClass(value) {
+                if (value < 0) return "negative";
+                if (value > 0) return "positive";
+                return "zero";
+            }
+
+            function formatEffect(value) {
+                if (value > 0) return "+1";
+                return String(value);
+            }
+
+            function renderStatePreview(before, after) {
+                beforeStateEl.innerHTML = "";
+                afterStateEl.innerHTML = "";
+
+                before.forEach((value) => {
+                    const cell = document.createElement("div");
+                    cell.className = "state-cell";
+                    cell.textContent = String(value);
+                    beforeStateEl.appendChild(cell);
+                });
+
+                after.forEach((value, index) => {
+                    const cell = document.createElement("div");
+                    cell.className =
+                        before[index] !== value
+                            ? "state-cell changed"
+                            : "state-cell";
+                    cell.textContent = String(value);
+                    afterStateEl.appendChild(cell);
+                });
+            }
+
+            function applyMove(state, plateIndex, direction) {
+                const next = state.map((value, index) => {
+                    return value + effectsRight[plateIndex][index] * direction;
+                });
+
+                const legal = next.every(
+                    (value) => value >= MIN && value <= MAX,
+                );
+
+                return legal ? next : null;
+            }
+
+            function isGoal(state) {
+                return state.every((value) => value === TARGET);
+            }
+
+            function stateKey(state) {
+                return state.join(",");
+            }
+
+            function findSolution(initialState) {
+                if (isGoal(initialState)) {
+                    return [];
+                }
+
+                const queue = [
+                    {
+                        state: initialState,
+                        path: [],
+                    },
+                ];
+
+                const visited = new Set([stateKey(initialState)]);
+
+                while (queue.length > 0) {
+                    const current = queue.shift();
+
+                    for (
+                        let plateIndex = 0;
+                        plateIndex < plateCount;
+                        plateIndex++
+                    ) {
+                        for (const direction of [+1, -1]) {
+                            const nextState = applyMove(
+                                current.state,
+                                plateIndex,
+                                direction,
+                            );
+
+                            if (!nextState) {
+                                continue;
+                            }
+
+                            const key = stateKey(nextState);
+
+                            if (visited.has(key)) {
+                                continue;
+                            }
+
+                            const moveName = `${plateIndex + 1}${direction > 0 ? "R" : "L"}`;
+
+                            const nextPath = [
+                                ...current.path,
+                                {
+                                    move: moveName,
+                                    direction,
+                                    plateIndex,
+                                    before: current.state,
+                                    after: nextState,
+                                },
+                            ];
+
+                            if (isGoal(nextState)) {
+                                return nextPath;
+                            }
+
+                            visited.add(key);
+                            queue.push({
+                                state: nextState,
+                                path: nextPath,
+                            });
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            function formatMoveToken(step) {
+                return `${step.plateIndex + 1}\u2009${step.direction > 0 ? "R" : "L"}`;
+            }
+
+            function createMoveToken(step, moveIndex = null) {
+                const token = document.createElement("span");
+                token.className = `move-token ${step.direction > 0 ? "right" : "left"}`;
+                token.textContent = formatMoveToken(step);
+
+                if (moveIndex !== null) {
+                    token.dataset.moveIndex = String(moveIndex);
+                }
+
+                return token;
+            }
+
+            function renderMoveTokens(container, steps) {
+                container.innerHTML = "";
+
+                if (steps.length === 0) {
+                    container.textContent = "—";
+                    return;
+                }
+
+                steps.forEach((step, index) => {
+                    if (index > 0) {
+                        const separator = document.createElement("span");
+                        separator.className = "move-separator";
+                        separator.textContent = "→";
+                        container.appendChild(separator);
+                    }
+
+                    container.appendChild(createMoveToken(step, index));
+                });
+            }
+
+            function buildSolutionTimeline(initialState, steps) {
+                const timeline = [
+                    {
+                        label: "Start",
+                        before: initialState,
+                        after: initialState,
+                        state: initialState,
+                        nextStep: steps[0] ?? null,
+                        step: null,
+                    },
+                ];
+
+                steps.forEach((step, index) => {
+                    timeline.push({
+                        label: `Step ${index + 1}`,
+                        before: step.before,
+                        after: step.after,
+                        state: step.after,
+                        nextStep: steps[index + 1] ?? null,
+                        step,
+                    });
+                });
+
+                return timeline;
+            }
+
+            function renderSolutionTimeline() {
+                stepsEl.innerHTML = "";
+
+                solutionTimeline.forEach((stage, index) => {
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className =
+                        index === activeSolutionStage
+                            ? "step-card active"
+                            : "step-card";
+                    card.dataset.stageIndex = String(index);
+
+                    const head = document.createElement("div");
+                    head.className =
+                        stage.step?.direction > 0
+                            ? "step-head right"
+                            : "step-head";
+
+                    const title = document.createElement("div");
+                    title.textContent = stage.label;
+
+                    const stageMove = document.createElement("div");
+                    if (stage.step) {
+                        stageMove.appendChild(
+                            createMoveToken(stage.step, index - 1),
+                        );
+                    } else if (stage.nextStep) {
+                        stageMove.textContent = "Start";
+                        const separator = document.createElement("span");
+                        separator.className = "move-separator";
+                        separator.textContent = "→";
+                        stageMove.appendChild(separator);
+                        stageMove.appendChild(
+                            createMoveToken(stage.nextStep, 0),
+                        );
+                    } else {
+                        stageMove.textContent = "Start";
+                    }
+
+                    const state = document.createElement("div");
+                    state.className = "step-state";
+                    state.textContent = `(${stage.before.join(", ")}) → (${stage.after.join(", ")})`;
+
+                    head.appendChild(title);
+                    head.appendChild(stageMove);
+
+                    card.appendChild(head);
+                    card.appendChild(state);
+                    card.addEventListener("click", () => {
+                        stopSolutionPlayback();
+                        setActiveSolutionStage(index, { scroll: false });
+                    });
+
+                    stepsEl.appendChild(card);
+                });
+            }
+
+            function updateSolutionControls() {
+                const hasTimeline = solutionTimeline.length > 0;
+                const canAnimate = solutionTimeline.length > 1;
+
+                solutionPrevBtn.disabled =
+                    !canAnimate || activeSolutionStage <= 0;
+                solutionNextBtn.disabled =
+                    !canAnimate ||
+                    activeSolutionStage >= solutionTimeline.length - 1;
+                solutionPlayBtn.disabled = !canAnimate;
+                solutionPlayBtn.textContent = isSolutionPlaying
+                    ? "Pause"
+                    : "Play";
+                solutionPlayBtn.hidden = !hasTimeline;
+                solutionPrevBtn.hidden = !hasTimeline;
+                solutionNextBtn.hidden = !hasTimeline;
+            }
+
+            function setActiveSolutionStage(stageIndex, options = {}) {
+                if (solutionTimeline.length === 0) {
+                    updateSolutionControls();
+                    return;
+                }
+
+                const nextStageIndex = clamp(
+                    stageIndex,
+                    0,
+                    solutionTimeline.length - 1,
+                );
+                const stage = solutionTimeline[nextStageIndex];
+
+                activeSolutionStage = nextStageIndex;
+                positions = [...stage.state];
+                renderPlateStack();
+                renderStatePreview(stage.before, stage.after);
+
+                stepsEl.querySelectorAll(".step-card").forEach((card) => {
+                    card.classList.toggle(
+                        "active",
+                        Number(card.dataset.stageIndex) === activeSolutionStage,
+                    );
+                });
+                document
+                    .querySelectorAll(".move-token.active")
+                    .forEach((token) => {
+                        token.classList.remove("active");
+                    });
+
+                if (activeSolutionStage > 0) {
+                    const activeMoveIndex = activeSolutionStage - 1;
+                    document
+                        .querySelectorAll(
+                            `.move-token[data-move-index="${activeMoveIndex}"]`,
+                        )
+                        .forEach((token) => {
+                            token.classList.add("active");
+                        });
+                }
+
+                if (options.scroll) {
+                    stepsEl
+                        .querySelector(
+                            `[data-stage-index="${activeSolutionStage}"]`,
+                        )
+                        ?.scrollIntoView({
+                            block: "nearest",
+                        });
+                }
+
+                updateSolutionControls();
+            }
+
+            function toggleSolutionPlayback() {
+                if (isSolutionPlaying) {
+                    stopSolutionPlayback();
+                    return;
+                }
+
+                startSolutionPlayback();
+            }
+
+            function startSolutionPlayback() {
+                if (solutionTimeline.length <= 1) {
+                    updateSolutionControls();
+                    return;
+                }
+
+                if (activeSolutionStage >= solutionTimeline.length - 1) {
+                    setActiveSolutionStage(0);
+                }
+
+                isSolutionPlaying = true;
+                updateSolutionControls();
+                solutionPlayTimer = window.setInterval(() => {
+                    if (activeSolutionStage >= solutionTimeline.length - 1) {
+                        stopSolutionPlayback();
+                        return;
+                    }
+
+                    setActiveSolutionStage(activeSolutionStage + 1, {
+                        scroll: true,
+                    });
+                }, 700);
+            }
+
+            function stopSolutionPlayback() {
+                if (solutionPlayTimer !== null) {
+                    window.clearInterval(solutionPlayTimer);
+                    solutionPlayTimer = null;
+                }
+
+                isSolutionPlaying = false;
+                updateSolutionControls();
+            }
+
+            function solve() {
+                const initialState = [...positions];
+                const solution = findSolution(initialState);
+
+                clearSolution({ resetStatus: false });
+
+                if (solution === null) {
+                    statusTextEl.textContent = "No solution found";
+                    statusTextEl.classList.add("error");
+                    comboTextEl.textContent = "Check the shift effects";
+                    renderStatePreview(initialState, initialState);
+                    return;
+                }
+
+                statusTextEl.classList.remove("error");
+                solutionSteps = solution;
+                solutionTimeline = buildSolutionTimeline(
+                    initialState,
+                    solutionSteps,
+                );
+                activeSolutionStage = 0;
+
+                if (solution.length === 0) {
+                    statusTextEl.textContent = "The lock is already open";
+                    comboTextEl.textContent = "All plates are at position 4";
+                    renderSolutionTimeline();
+                    setActiveSolutionStage(0);
+                    return;
+                }
+
+                statusTextEl.textContent = "Solution found";
+                renderMoveTokens(comboTextEl, solutionSteps);
+                renderSolutionTimeline();
+                setActiveSolutionStage(0);
+            }
+
+            function clearSolution(options = {}) {
+                const { resetStatus = true } = options;
+
+                stopSolutionPlayback();
+                solutionSteps = [];
+                solutionTimeline = [];
+                activeSolutionStage = 0;
+
+                if (resetStatus) {
+                    statusTextEl.textContent = "Waiting for setup";
+                    statusTextEl.classList.remove("error");
+                    comboTextEl.textContent = "—";
+                }
+
+                stepsEl.innerHTML = "";
+                updateSolutionControls();
+            }
+
+            function reset() {
+                templateSelect.value = DEFAULT_TEMPLATE_CODE;
+                syncTemplateReadonly();
+                mode = MODE_SETUP;
+                plateCount = 5;
+                activePlate = 0;
+                positions = [4, 4, 4, 4, 4];
+                effectsRight = createIdentityEffects(plateCount);
+
+                clearSolution();
+                setMode(MODE_SETUP);
+            }
+
+            function clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
+            }
+            renderTemplateSelect();
+            syncTemplateReadonly();
+            loadPlateHitImage();
+            render();
+            updateSolutionControls();
+        </script>
+    </body>
+</html>
