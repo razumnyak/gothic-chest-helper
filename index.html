@@ -315,6 +315,8 @@
                 background: #11100e;
                 border: 1px solid var(--border);
                 font-family: Consolas, Monaco, monospace;
+                cursor: pointer;
+                user-select: none;
             }
 
             .effect-value.negative {
@@ -1636,6 +1638,31 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
                     const valueBox = document.createElement("div");
                     valueBox.className = `effect-value ${getEffectClass(value)}`;
                     valueBox.textContent = formatEffect(value);
+                    valueBox.title =
+                        "Left click: -1, middle click: 0, right click: +1";
+                    valueBox.addEventListener("contextmenu", (event) => {
+                        event.preventDefault();
+                    });
+                    valueBox.addEventListener("auxclick", (event) => {
+                        event.preventDefault();
+                    });
+                    valueBox.addEventListener("mousedown", (event) => {
+                        event.preventDefault();
+
+                        if (event.button === 0) {
+                            setEffect(index, -1);
+                            return;
+                        }
+
+                        if (event.button === 1) {
+                            setEffect(index, 0);
+                            return;
+                        }
+
+                        if (event.button === 2) {
+                            setEffect(index, +1);
+                        }
+                    });
 
                     row.appendChild(name);
                     row.appendChild(description);
