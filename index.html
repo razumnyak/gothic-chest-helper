@@ -645,6 +645,69 @@
                 font-size: 28px;
             }
 
+            .wasd-panel {
+                margin-top: 16px;
+                padding: 12px;
+                border: 1px solid var(--border);
+                background: rgba(0, 0, 0, 0.24);
+            }
+
+            .wasd-title {
+                margin-bottom: 8px;
+                color: var(--muted);
+                text-transform: uppercase;
+                font-size: 13px;
+            }
+
+            .wasd-output {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                min-height: 30px;
+                align-items: center;
+            }
+
+            .wasd-key {
+                display: inline-grid;
+                min-width: 28px;
+                min-height: 28px;
+                place-items: center;
+                padding: 3px 8px;
+                border: 1px solid rgba(234, 223, 199, 0.22);
+                background: rgba(0, 0, 0, 0.22);
+                font-family: Consolas, Monaco, monospace;
+                line-height: 1;
+            }
+
+            .wasd-key.up {
+                color: #8fd4ff;
+                border-color: rgba(100, 181, 246, 0.58);
+                background: rgba(42, 113, 170, 0.22);
+            }
+
+            .wasd-key.down {
+                color: #d7b4ff;
+                border-color: rgba(170, 120, 230, 0.6);
+                background: rgba(99, 63, 145, 0.22);
+            }
+
+            .wasd-key.left {
+                color: #9dde8d;
+                border-color: rgba(121, 201, 106, 0.52);
+                background: rgba(72, 130, 58, 0.18);
+            }
+
+            .wasd-key.right {
+                color: #ef948b;
+                border-color: rgba(213, 109, 99, 0.56);
+                background: rgba(145, 63, 56, 0.2);
+            }
+
+            .wasd-empty {
+                color: var(--muted);
+                font-size: 13px;
+            }
+
             .solution-card {
                 padding: 16px;
                 border: 1px solid var(--border);
@@ -896,6 +959,17 @@
                             <div id="afterState" class="state-row"></div>
                         </div>
                     </div>
+
+                    <div class="wasd-panel">
+                        <div class="wasd-title">
+                            WASD Transcription (<i>Experimental</i>)
+                        </div>
+                        <div id="wasdOutput" class="wasd-output">
+                            <span class="wasd-empty"
+                                >Calculate a solution to show controls.</span
+                            >
+                        </div>
+                    </div>
                 </section>
 
                 <aside class="panel">
@@ -1002,6 +1076,7 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
 
             const beforeStateEl = document.getElementById("beforeState");
             const afterStateEl = document.getElementById("afterState");
+            const wasdOutputEl = document.getElementById("wasdOutput");
 
             const solveBtn = document.getElementById("solveBtn");
             const resetBtn = document.getElementById("resetBtn");
@@ -1895,6 +1970,48 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
                 });
             }
 
+            function renderWasdTranscription(steps) {
+                wasdOutputEl.innerHTML = "";
+
+                if (steps.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.className = "wasd-empty";
+                    empty.textContent = "No movement required.";
+                    wasdOutputEl.appendChild(empty);
+                    return;
+                }
+
+                let currentPlate = 1;
+
+                steps.forEach((step) => {
+                    const nextPlate = step.plateIndex + 1;
+                    const delta = nextPlate - currentPlate;
+                    const navKey = delta > 0 ? "W" : "S";
+                    const navClass = delta > 0 ? "up" : "down";
+
+                    for (let index = 0; index < Math.abs(delta); index++) {
+                        wasdOutputEl.appendChild(
+                            createWasdKey(navKey, navClass),
+                        );
+                    }
+
+                    wasdOutputEl.appendChild(
+                        createWasdKey(
+                            step.direction > 0 ? "D" : "A",
+                            step.direction > 0 ? "right" : "left",
+                        ),
+                    );
+                    currentPlate = nextPlate;
+                });
+            }
+
+            function createWasdKey(key, className) {
+                const element = document.createElement("span");
+                element.className = `wasd-key ${className}`;
+                element.textContent = key;
+                return element;
+            }
+
             function buildSolutionTimeline(initialState, steps) {
                 const timeline = [
                     {
@@ -2118,6 +2235,7 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
                 if (solution.length === 0) {
                     statusTextEl.textContent = "The lock is already open";
                     comboTextEl.textContent = "All plates are at position 4";
+                    renderWasdTranscription(solutionSteps);
                     renderSolutionTimeline();
                     setActiveSolutionStage(0);
                     return;
@@ -2125,6 +2243,7 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
 
                 statusTextEl.textContent = "Solution found";
                 renderMoveTokens(comboTextEl, solutionSteps);
+                renderWasdTranscription(solutionSteps);
                 renderSolutionTimeline();
                 setActiveSolutionStage(0);
             }
@@ -2144,6 +2263,8 @@ Old Cave - Ulbert #2|EGBFEECBABBACCBCCCCCBBBBCBBBACC
                 }
 
                 stepsEl.innerHTML = "";
+                wasdOutputEl.innerHTML =
+                    '<span class="wasd-empty">Calculate a solution to show controls.</span>';
                 updateSolutionControls();
             }
 
