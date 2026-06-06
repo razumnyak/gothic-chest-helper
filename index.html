@@ -3,7 +3,49 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Lockpicking Solver</title>
+        <title>Lockpicking Solver Calculator</title>
+        <meta
+            name="description"
+            content="Interactive plate lockpicking solver calculator with preset codes, shift effects, solution steps, and animated playback."
+        />
+        <meta
+            name="keywords"
+            content="lockpicking solver, plate lock calculator, lock puzzle solver, shift effects calculator, game lockpicking"
+        />
+        <meta name="author" content="Lockpicking Solver" />
+        <meta name="robots" content="index, follow" />
+        <meta name="theme-color" content="#11100e" />
+        <meta name="color-scheme" content="dark" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Lockpicking Solver Calculator" />
+        <meta
+            property="og:description"
+            content="Configure plate positions and shift effects, then calculate and animate the solution path."
+        />
+        <meta property="og:image" content="src/plate.png" />
+        <meta property="og:image:alt" content="Plate lock sprite preview" />
+        <meta property="og:site_name" content="Lockpicking Solver" />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Lockpicking Solver Calculator" />
+        <meta
+            name="twitter:description"
+            content="Interactive static calculator for solving plate lock puzzles with presets and animated solution playback."
+        />
+        <meta name="twitter:image" content="src/plate.png" />
+
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "WebApplication",
+                "name": "Lockpicking Solver Calculator",
+                "applicationCategory": "GameApplication",
+                "operatingSystem": "Any",
+                "description": "Interactive plate lockpicking solver calculator with preset codes, shift effects, solution steps, and animated playback.",
+                "isAccessibleForFree": true
+            }
+        </script>
 
         <style>
             :root {
@@ -719,6 +761,23 @@
                 font-family: Consolas, Monaco, monospace;
                 font-size: 14px;
             }
+
+            .footer {
+                margin-top: 18px;
+                color: var(--muted);
+                text-align: center;
+                font-size: 13px;
+                line-height: 1.45;
+            }
+
+            .footer a {
+                color: #f1d28d;
+                text-decoration: none;
+            }
+
+            .footer a:hover {
+                text-decoration: underline;
+            }
         </style>
     </head>
 
@@ -864,6 +923,19 @@
                     <div id="steps" class="steps"></div>
                 </aside>
             </div>
+
+            <footer class="footer">
+                GitHub:
+                <a
+                    href="https://github.com/razumnyak/gothic-chest-helper"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    razumnyak/gothic-chest-helper
+                </a>
+                · We accept issues with presets. Please include the preset code
+                and a short explanation of the setup or expected behavior.
+            </footer>
         </main>
 
         <script>
