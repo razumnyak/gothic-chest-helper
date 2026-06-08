@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://razumnyak.github.io/gothic-chest-helper/
