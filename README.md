@@ -13,6 +13,10 @@ Open the published GitHub Pages URL and configure:
 Click `Calculate` to find a solution. Use the Solution controls to step through
 the result or play the animation.
 
+The solution path is calculated in `solver.worker.js`. The default algorithm is
+the original BFS mode, and the UI also includes options that prefer fewer plate
+transitions or fewer WASD key presses.
+
 ## Sharing Codes
 
 The `Code` field stores the full calculator state as a short string:
@@ -52,5 +56,6 @@ Old Cave - Ulbert #1|FABFBDFCCBBABACBABCBBCBBBBABCACBBCBCBBBBBCC
 This repository is intended to stay minimal for GitHub Pages:
 
 - `index.html`
+- `solver.worker.js`
 - `README.md`
 - `src/plate.png`

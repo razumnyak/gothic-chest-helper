@@ -3,6 +3,7 @@
 !.gitignore
 !README.md
 !index.html
+!solver.worker.js
 !src/
 !src/plate.png
 !robots.txt

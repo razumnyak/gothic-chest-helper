@@ -383,6 +383,28 @@
                 margin-top: 20px;
             }
 
+            .solve-options {
+                margin-top: 16px;
+                display: grid;
+                gap: 5px;
+                color: var(--muted);
+                font-size: 13px;
+            }
+
+            .solve-options select {
+                min-height: 38px;
+                width: 100%;
+                padding: 7px 9px;
+                color: var(--text);
+                background: #11100e;
+                border: 1px solid var(--border);
+                outline: none;
+            }
+
+            .solve-options select:focus {
+                border-color: rgba(208, 168, 93, 0.72);
+            }
+
             .primary-btn {
                 min-height: 52px;
                 color: #151008;
@@ -1099,6 +1121,17 @@
                         </div>
                     </div>
 
+                    <label class="solve-options">
+                        Search Algorithm (Experimental)
+                        <select id="algorithmSelect">
+                            <option value="bfs">1. BFS moves [default]</option>
+                            <option value="plate-travel">
+                                2. Less plate travel
+                            </option>
+                            <option value="wasd">3. Fewer WASD keys</option>
+                        </select>
+                    </label>
+
                     <div class="actions">
                         <button id="solveBtn" class="primary-btn">
                             Calculate
@@ -1251,6 +1284,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             const afterStateEl = document.getElementById("afterState");
             const wasdOutputEl = document.getElementById("wasdOutput");
 
+            const algorithmSelect = document.getElementById("algorithmSelect");
             const solveBtn = document.getElementById("solveBtn");
             const resetBtn = document.getElementById("resetBtn");
             const resetConfirmModal =
@@ -1277,6 +1311,9 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             let activeSolutionStage = 0;
             let solutionPlayTimer = null;
             let isSolutionPlaying = false;
+            let solverWorker = null;
+            let activeSolveRequestId = 0;
+            let isSolving = false;
 
             const presetTemplates = parsePresetTemplates(PRESET_TEMPLATE_LINES);
 
@@ -1340,6 +1377,9 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             );
 
             solveBtn.addEventListener("click", solve);
+            algorithmSelect.addEventListener("change", () => {
+                clearSolution();
+            });
             resetBtn.addEventListener("click", openResetConfirmModal);
             cancelResetBtn.addEventListener("click", closeResetConfirmModal);
             confirmResetBtn.addEventListener("click", () => {
@@ -2220,82 +2260,6 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 return legal ? next : null;
             }
 
-            function isGoal(state) {
-                return state.every((value) => value === TARGET);
-            }
-
-            function stateKey(state) {
-                return state.join(",");
-            }
-
-            function findSolution(initialState) {
-                if (isGoal(initialState)) {
-                    return [];
-                }
-
-                const queue = [
-                    {
-                        state: initialState,
-                        path: [],
-                    },
-                ];
-
-                const visited = new Set([stateKey(initialState)]);
-
-                while (queue.length > 0) {
-                    const current = queue.shift();
-
-                    for (
-                        let plateIndex = 0;
-                        plateIndex < plateCount;
-                        plateIndex++
-                    ) {
-                        for (const direction of [+1, -1]) {
-                            const nextState = applyMove(
-                                current.state,
-                                plateIndex,
-                                direction,
-                            );
-
-                            if (!nextState) {
-                                continue;
-                            }
-
-                            const key = stateKey(nextState);
-
-                            if (visited.has(key)) {
-                                continue;
-                            }
-
-                            const moveName = `${plateIndex + 1}${direction > 0 ? "R" : "L"}`;
-
-                            const nextPath = [
-                                ...current.path,
-                                {
-                                    move: moveName,
-                                    direction,
-                                    plateIndex,
-                                    before: current.state,
-                                    after: nextState,
-                                },
-                            ];
-
-                            if (isGoal(nextState)) {
-                                return nextPath;
-                            }
-
-                            visited.add(key);
-                            queue.push({
-                                state: nextState,
-                                path: nextPath,
-                            });
-                        }
-                    }
-                }
-
-                return null;
-            }
-
             function formatMoveToken(step) {
                 return `${step.plateIndex + 1}\u2009${step.direction > 0 ? "R" : "L"}`;
             }
@@ -2574,13 +2538,69 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 updateSolutionControls();
             }
 
-            function solve() {
-                const initialState = [...initialPositions];
-                demoPositions = [...initialState];
-                const solution = findSolution(initialState);
+            function createSolverWorker() {
+                const worker = new Worker("solver.worker.js");
 
-                clearSolution({ resetStatus: false });
+                worker.addEventListener("message", handleSolverMessage);
+                worker.addEventListener("error", (event) => {
+                    showSolverError(
+                        "Solver worker failed. Use GitHub Pages or a local web server.",
+                    );
+                    console.error(event.message);
+                });
 
+                return worker;
+            }
+
+            function cancelActiveSolve() {
+                activeSolveRequestId++;
+                closeSolverWorker();
+
+                isSolving = false;
+                solveBtn.disabled = false;
+            }
+
+            function closeSolverWorker() {
+                if (!solverWorker) {
+                    return;
+                }
+
+                solverWorker.terminate();
+                solverWorker = null;
+            }
+
+            function handleSolverMessage(event) {
+                const message = event.data ?? {};
+
+                if (message.requestId !== activeSolveRequestId) {
+                    return;
+                }
+
+                isSolving = false;
+                solveBtn.disabled = false;
+                closeSolverWorker();
+
+                if (message.type === "failed") {
+                    showSolverError(message.reason || "Solver failed");
+                    return;
+                }
+
+                if (message.type !== "solved") {
+                    return;
+                }
+
+                renderSolvedPath([...initialPositions], message.solution);
+            }
+
+            function showSolverError(message) {
+                cancelActiveSolve();
+                statusTextEl.textContent = message;
+                statusTextEl.classList.add("error");
+                comboTextEl.textContent = "Unable to calculate";
+                renderStatePreview(initialPositions, initialPositions);
+            }
+
+            function renderSolvedPath(initialState, solution) {
                 if (solution === null) {
                     statusTextEl.textContent = "No solution found";
                     statusTextEl.classList.add("error");
@@ -2613,9 +2633,47 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 setActiveSolutionStage(0);
             }
 
+            function solve() {
+                const initialState = [...initialPositions];
+                demoPositions = [...initialState];
+                clearSolution({ resetStatus: false });
+
+                activeSolveRequestId++;
+                const requestId = activeSolveRequestId;
+
+                try {
+                    solverWorker = createSolverWorker();
+                } catch (error) {
+                    showSolverError(
+                        "Solver worker is unavailable. Use GitHub Pages or a local web server.",
+                    );
+                    return;
+                }
+
+                isSolving = true;
+                solveBtn.disabled = true;
+                statusTextEl.textContent = "Calculating...";
+                statusTextEl.classList.remove("error");
+                comboTextEl.textContent = "Please wait";
+                renderStatePreview(initialState, initialState);
+
+                solverWorker.postMessage({
+                    type: "solve",
+                    requestId,
+                    algorithm: algorithmSelect.value,
+                    plateCount,
+                    initialPositions: initialState,
+                    effectsRight: effectsRight.map((row) => [...row]),
+                    min: MIN,
+                    max: MAX,
+                    target: TARGET,
+                });
+            }
+
             function clearSolution(options = {}) {
                 const { resetStatus = true } = options;
 
+                cancelActiveSolve();
                 stopSolutionPlayback();
                 solutionSteps = [];
                 solutionTimeline = [];
