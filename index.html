@@ -603,21 +603,21 @@
 
             .plate {
                 position: absolute;
-                left: var(--stack-x);
-                bottom: var(--stack-y);
+                left: 0;
+                bottom: 0;
                 width: var(--plate-width);
                 aspect-ratio: var(--plate-aspect);
                 background: url("src/plate.png") no-repeat center / contain;
-                transform: translate(var(--move-x), var(--move-y));
+                transform: translate(0, 0);
 
                 transform-origin: center;
                 filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
                     brightness(var(--brightness));
 
                 transition:
-                    left 160ms ease,
-                    bottom 160ms ease,
-                    transform 160ms ease,
+                    left 360ms ease,
+                    bottom 360ms ease,
+                    transform 360ms ease,
                     filter 160ms ease;
 
                 user-select: none;
@@ -634,6 +634,9 @@
                 -webkit-mask: url("src/plate.png") no-repeat center / contain;
                 mask: url("src/plate.png") no-repeat center / contain;
                 mix-blend-mode: screen;
+                transition:
+                    background 180ms ease,
+                    opacity 180ms ease;
                 pointer-events: none;
             }
 
@@ -2358,11 +2361,49 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             }
 
             function renderPlateStack() {
-                plateStackEl.innerHTML = "";
                 const displayPositions = getDisplayPositions();
+                const previewStep =
+                    mode === MODE_PREVIEW
+                        ? solutionTimeline[activeSolutionStage]?.step
+                        : null;
+                const existingPlates = new Map(
+                    [...plateStackEl.querySelectorAll(".plate")].map(
+                        (plate) => [Number(plate.dataset.index), plate],
+                    ),
+                );
+
+                existingPlates.forEach((plate, index) => {
+                    if (index >= plateCount) {
+                        plate.remove();
+                    }
+                });
 
                 for (let index = 0; index < plateCount; index++) {
-                    const plate = document.createElement("div");
+                    let plate = existingPlates.get(index);
+                    let shouldAppendPlate = false;
+
+                    if (!plate) {
+                        plate = document.createElement("div");
+                        plate.dataset.index = String(index);
+                        shouldAppendPlate = true;
+
+                        const label = document.createElement("div");
+                        label.className = "plate-label";
+                        plate.appendChild(label);
+
+                        const position = document.createElement("div");
+                        position.className = "plate-position";
+                        plate.appendChild(position);
+
+                        const targetDot = document.createElement("div");
+                        targetDot.className = "plate-target-dot";
+                        plate.appendChild(targetDot);
+
+                        const effectBadge = document.createElement("div");
+                        effectBadge.className = "plate-effect-badge";
+                        plate.appendChild(effectBadge);
+                    }
+
                     plate.className = "plate";
                     plate.dataset.index = String(index);
 
@@ -2375,13 +2416,11 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         displayPositions[index],
                     );
 
-                    plate.style.setProperty(
-                        "--stack-x",
-                        `${stackX - ((plateCount - 1) * stackStepX) / 2}px`,
-                    );
-                    plate.style.setProperty("--stack-y", `${stackY}px`);
-                    plate.style.setProperty("--move-x", `${moveX}px`);
-                    plate.style.setProperty("--move-y", `${moveY}px`);
+                    plate.style.left = `${
+                        stackX - ((plateCount - 1) * stackStepX) / 2
+                    }px`;
+                    plate.style.bottom = `${stackY}px`;
+                    plate.style.transform = `translate(${moveX}px, ${moveY}px)`;
                     plate.style.setProperty(
                         "--brightness",
                         String(1 - index * 0.035),
@@ -2404,15 +2443,31 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         }
                     }
 
-                    const label = document.createElement("div");
-                    label.className = "plate-label";
+                    if (mode === MODE_PREVIEW && previewStep) {
+                        if (index === previewStep.plateIndex) {
+                            plate.classList.add("active");
+                        } else {
+                            const delta =
+                                previewStep.after[index] -
+                                previewStep.before[index];
+
+                            if (delta < 0) {
+                                plate.classList.add("effect-negative");
+                            }
+
+                            if (delta > 0) {
+                                plate.classList.add("effect-positive");
+                            }
+                        }
+                    }
+
+                    const label = plate.querySelector(".plate-label");
                     label.textContent = `P${index + 1}`;
 
-                    const position = document.createElement("div");
-                    position.className = "plate-position";
+                    const position = plate.querySelector(".plate-position");
                     position.textContent = String(displayPositions[index]);
 
-                    const targetDot = document.createElement("div");
+                    const targetDot = plate.querySelector(".plate-target-dot");
                     targetDot.className =
                         displayPositions[index] === TARGET
                             ? "plate-target-dot target"
@@ -2426,21 +2481,22 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         `${-moveY}px`,
                     );
 
-                    const effectBadge = document.createElement("div");
+                    const effectBadge = plate.querySelector(
+                        ".plate-effect-badge",
+                    );
                     const effect = effectsRight[activePlate][index];
                     effectBadge.className = `plate-effect-badge ${getEffectClass(effect)}`;
 
                     if (mode === MODE_EFFECTS) {
                         effectBadge.classList.add("visible");
                         effectBadge.textContent = formatEffect(effect);
+                    } else {
+                        effectBadge.textContent = "";
                     }
 
-                    plate.appendChild(label);
-                    plate.appendChild(position);
-                    plate.appendChild(targetDot);
-                    plate.appendChild(effectBadge);
-
-                    plateStackEl.appendChild(plate);
+                    if (shouldAppendPlate) {
+                        plateStackEl.appendChild(plate);
+                    }
                 }
             }
 
