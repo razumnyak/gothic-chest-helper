@@ -828,6 +828,21 @@
                 align-items: center;
             }
 
+            .wasd-group {
+                display: inline-flex;
+                gap: 5px;
+                padding: 3px;
+                border: 1px solid transparent;
+                transition:
+                    background 160ms ease,
+                    border-color 160ms ease;
+            }
+
+            .wasd-group.active {
+                background: rgba(0, 60, 102, 0.24);
+                border-color: rgba(116, 169, 208, 0.58);
+            }
+
             .wasd-key {
                 display: inline-grid;
                 min-width: 28px;
@@ -838,6 +853,14 @@
                 background: rgba(0, 0, 0, 0.22);
                 font-family: Consolas, Monaco, monospace;
                 line-height: 1;
+                transition:
+                    background 160ms ease,
+                    border-color 160ms ease;
+            }
+
+            .wasd-group.active .wasd-key {
+                border-color: rgba(240, 202, 122, 0.72);
+                background: rgba(240, 202, 122, 0.12);
             }
 
             .wasd-key.up {
@@ -2731,32 +2754,39 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 }
 
                 let currentPlate = 1;
+                let keyCount = 0;
 
-                steps.forEach((step) => {
+                steps.forEach((step, moveIndex) => {
+                    const group = document.createElement("span");
+                    group.className = "wasd-group";
+                    group.dataset.moveIndex = String(moveIndex);
+
                     const nextPlate = step.plateIndex + 1;
                     const delta = nextPlate - currentPlate;
                     const navKey = delta > 0 ? "W" : "S";
                     const navClass = delta > 0 ? "up" : "down";
 
                     for (let index = 0; index < Math.abs(delta); index++) {
-                        wasdOutputEl.appendChild(
-                            createWasdKey(navKey, navClass),
-                        );
+                        group.appendChild(createWasdKey(navKey, navClass));
+                        keyCount++;
                     }
 
-                    wasdOutputEl.appendChild(
+                    group.appendChild(
                         createWasdKey(
                             step.direction > 0 ? "D" : "A",
                             step.direction > 0 ? "right" : "left",
                         ),
                     );
+                    keyCount++;
+                    wasdOutputEl.appendChild(group);
                     currentPlate = nextPlate;
                 });
 
                 if (wasdTitleEl) {
-                    const keyCount = wasdOutputEl.children.length;
                     wasdTitleEl.innerHTML = `WASD Transcription [${keyCount}] (<i>Experimental</i>)`;
                 }
+
+                updateActiveWasdGroup();
             }
 
             function createWasdKey(key, className) {
@@ -2764,6 +2794,25 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 element.className = `wasd-key ${className}`;
                 element.textContent = key;
                 return element;
+            }
+
+            function updateActiveWasdGroup() {
+                wasdOutputEl
+                    .querySelectorAll(".wasd-group.active")
+                    .forEach((group) => {
+                        group.classList.remove("active");
+                    });
+
+                if (activeSolutionStage <= 0) {
+                    return;
+                }
+
+                const activeMoveIndex = activeSolutionStage - 1;
+                wasdOutputEl
+                    .querySelector(
+                        `.wasd-group[data-move-index="${activeMoveIndex}"]`,
+                    )
+                    ?.classList.add("active");
             }
 
             function computeWasdKeyCount(steps) {
@@ -2923,6 +2972,8 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                             token.classList.add("active");
                         });
                 }
+
+                updateActiveWasdGroup();
 
                 if (options.scroll) {
                     stepsEl
