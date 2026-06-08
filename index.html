@@ -450,6 +450,13 @@
                 font-size: 13px;
             }
 
+            .algorithm-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 48px;
+                gap: 8px;
+                align-items: end;
+            }
+
             .solve-options select {
                 min-height: 38px;
                 width: 100%;
@@ -476,8 +483,6 @@
 
             .solve-actions {
                 display: grid;
-                grid-template-columns: minmax(0, 1fr) 52px;
-                gap: 8px;
                 margin-bottom: 16px;
             }
 
@@ -487,12 +492,29 @@
 
             #bestBtn {
                 width: 100%;
-                min-height: 52px;
+                min-height: 38px;
+                display: grid;
+                place-items: center;
+                gap: 1px;
                 color: #151008;
-                font-size: 20px;
                 font-weight: bold;
                 background: linear-gradient(180deg, #e2bd6f, #9d6e2d);
                 border: 1px solid #f0ca7a;
+            }
+
+            .best-icon {
+                font-size: 19px;
+                font-weight: 400;
+                line-height: 1;
+            }
+
+            .best-label {
+                font-size: 9px;
+                line-height: 1;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                margin-top: -4px;
+                margin-bottom: 4px;
             }
 
             .solve-actions button:disabled {
@@ -1243,32 +1265,37 @@
                 <aside class="panel">
                     <h2 class="lock-title">Solution</h2>
 
-                    <label class="solve-options">
-                        Search Algorithm (Experimental)
-                        <select id="algorithmSelect">
-                            <option value="bfs">
-                                1. BFS shortest [default]
-                            </option>
-                            <option value="plate-travel">
-                                2. Less plate travel
-                            </option>
-                            <option value="fewer-switches-fast">
-                                3. Fewer switches (fast heuristic)
-                            </option>
-                            <option value="wasd">4. Fewer WASD keys</option>
-                        </select>
-                    </label>
+                    <div class="solve-options">
+                        <label for="algorithmSelect">
+                            Search Algorithm (Experimental)
+                        </label>
+                        <div class="algorithm-row">
+                            <select id="algorithmSelect">
+                                <option value="bfs">
+                                    1. BFS shortest [default]
+                                </option>
+                                <option value="plate-travel">
+                                    2. Less plate travel
+                                </option>
+                                <option value="fewer-switches-fast">
+                                    3. Fewer switches (fast heuristic)
+                                </option>
+                                <option value="wasd">4. Fewer WASD keys</option>
+                            </select>
+                            <button
+                                id="bestBtn"
+                                class="secondary"
+                                title="Auto-select best algorithm (fewest WASD keypresses)"
+                            >
+                                <span class="best-icon">↻</span>
+                                <span class="best-label">auto</span>
+                            </button>
+                        </div>
+                    </div>
 
                     <div class="solve-actions">
                         <button id="solveBtn" class="primary-btn">
                             Calculate
-                        </button>
-                        <button
-                            id="bestBtn"
-                            class="secondary"
-                            title="Auto-select best algorithm (fewest WASD keypresses)"
-                        >
-                            ↻
                         </button>
                     </div>
                     <div
