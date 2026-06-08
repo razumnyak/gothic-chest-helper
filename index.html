@@ -1574,6 +1574,25 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                 }
             }
 
+            function isSetupLocked() {
+                return isSolving;
+            }
+
+            function updateSetupLock() {
+                const locked = isSetupLocked();
+
+                templateSelect.disabled = locked;
+                templateCode.disabled = locked;
+                importTemplateBtn.disabled = locked;
+                resetBtn.disabled = locked;
+                plateMinus.disabled = locked;
+                platePlus.disabled = locked;
+                algorithmSelect.disabled = locked;
+
+                setupModeBtn.disabled = locked && mode !== MODE_SETUP;
+                effectModeBtn.disabled = locked && mode !== MODE_EFFECTS;
+            }
+
             const presetTemplates = parsePresetTemplates(PRESET_TEMPLATE_LINES);
 
             function cssNumber(name) {
@@ -1638,6 +1657,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             solveBtn.addEventListener("click", solve);
             if (bestBtn) bestBtn.addEventListener("click", findBestSolution);
             algorithmSelect.addEventListener("change", () => {
+                if (isSolving) {
+                    return;
+                }
+
                 applyCachedAlgorithmSolution();
             });
             resetBtn.addEventListener("click", openResetConfirmModal);
@@ -1858,6 +1881,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function applyTemplate(template) {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 plateCount = template.plateCount;
                 initialPositions = [...template.positions];
                 shiftPositions = [...initialPositions];
@@ -1873,6 +1900,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function applyPresetShiftEffects(preset) {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 templateSelect.value = "";
                 syncTemplateReadonly();
                 effectsRight = preset.effectsRight.map((row) => [...row]);
@@ -1888,6 +1919,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function applySelectedTemplate() {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 if (!templateSelect.value) {
                     updateLocationCode(null);
                     hasManualTemplateCode = false;
@@ -1924,6 +1959,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function importTemplateCode() {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 try {
                     const code = templateCode.value.trim();
                     selectMatchingTemplate(code);
@@ -2035,6 +2074,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
 
             function handlePlateStackMouseDown(event) {
                 event.preventDefault();
+
+                if (isSetupLocked()) {
+                    return;
+                }
 
                 if (!plateHitImageReady) {
                     return;
@@ -2163,6 +2206,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function setPlateCount(nextCount) {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 templateSelect.value = "";
                 syncTemplateReadonly();
                 plateCount = clamp(nextCount, MIN_PLATES, MAX_PLATES);
@@ -2220,6 +2267,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                     renderStatePreview(displayPositions, displayPositions);
                 }
                 syncTemplateCode();
+                updateSetupLock();
             }
 
             function renderSetupPositions() {
@@ -2235,6 +2283,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
 
                     const leftBtn = document.createElement("button");
                     leftBtn.className = "basic-btn";
+                    leftBtn.disabled = isSetupLocked();
                     leftBtn.textContent = "←";
                     leftBtn.addEventListener("click", () =>
                         changeInitialPosition(index, -1),
@@ -2244,6 +2293,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
 
                     const rightBtn = document.createElement("button");
                     rightBtn.className = "basic-btn";
+                    rightBtn.disabled = isSetupLocked();
                     rightBtn.textContent = "→";
                     rightBtn.addEventListener("click", () =>
                         changeInitialPosition(index, +1),
@@ -2286,6 +2336,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                         index === activePlate
                             ? "basic-btn active-row"
                             : "basic-btn";
+                    row.disabled = isSetupLocked();
                     row.textContent = `P${index + 1}`;
                     row.addEventListener("click", () => {
                         activePlate = index;
@@ -2342,6 +2393,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                     const applyBtn = document.createElement("button");
                     applyBtn.type = "button";
                     applyBtn.className = "basic-btn";
+                    applyBtn.disabled = isSetupLocked();
                     applyBtn.textContent = "Apply";
                     applyBtn.addEventListener("click", () => {
                         applyPresetShiftEffects(preset);
@@ -2399,7 +2451,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                     valueBox.addEventListener("mousedown", (event) => {
                         event.preventDefault();
 
-                        if (locked) {
+                        if (locked || isSetupLocked()) {
                             return;
                         }
 
@@ -2559,6 +2611,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             function handlePlateMouseDown(event, plateIndex) {
                 event.preventDefault();
 
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 if (mode === MODE_SETUP) {
                     if (event.button === 0) {
                         changeInitialPosition(plateIndex, -1);
@@ -2585,6 +2641,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function changeInitialPosition(index, delta) {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 templateSelect.value = "";
                 syncTemplateReadonly();
                 initialPositions[index] = clamp(
@@ -2600,6 +2660,10 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
             }
 
             function setEffect(affectedPlate, value) {
+                if (isSetupLocked()) {
+                    return;
+                }
+
                 if (affectedPlate === activePlate) {
                     return;
                 }
@@ -3151,6 +3215,8 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
 
                 isSolving = false;
                 solveBtn.disabled = false;
+                if (bestBtn) bestBtn.disabled = false;
+                updateSetupLock();
             }
 
             function closeSolverWorker() {
@@ -3172,6 +3238,8 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                 isSolving = false;
                 solveBtn.disabled = false;
                 closeSolverWorker();
+                if (bestBtn) bestBtn.disabled = false;
+                updateSetupLock();
 
                 if (message.type === "failed") {
                     showSolverError(message.reason || "Solver failed");
@@ -3236,6 +3304,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                 isSolving = true;
                 solveBtn.disabled = true;
                 if (bestBtn) bestBtn.disabled = true;
+                updateSetupLock();
 
                 const solvingTitleEl = document.querySelector(".solving-title");
                 const solvingTextEl = document.querySelector(".solving-text");
@@ -3255,17 +3324,17 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                 statusTextEl.classList.remove("error");
                 comboTextEl.textContent = "Checking algorithms";
 
-                try {
-                    const algos = [
-                        { id: "bfs", label: "BFS shortest" },
-                        { id: "plate-travel", label: "Plate travel" },
-                        {
-                            id: "fewer-switches-fast",
-                            label: "Fast switches",
-                        },
-                        { id: "wasd", label: "WASD" },
-                    ];
+                const algos = [
+                    { id: "bfs", label: "BFS shortest" },
+                    { id: "plate-travel", label: "Plate travel" },
+                    {
+                        id: "fewer-switches-fast",
+                        label: "Fast switches",
+                    },
+                    { id: "wasd", label: "WASD" },
+                ];
 
+                try {
                     let best = null;
                     let bestCount = Infinity;
 
@@ -3322,7 +3391,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                         }
                     }
                 } finally {
-                    setBestProgress(4, 4, "Complete");
+                    setBestProgress(algos.length, algos.length, "Complete");
                     if (solvingTitleEl) solvingTitleEl.textContent = prevTitle;
                     if (solvingTextEl) solvingTextEl.textContent = prevText;
                     if (overlay) overlay.classList.remove("active");
@@ -3330,6 +3399,7 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
                     isSolving = false;
                     solveBtn.disabled = false;
                     if (bestBtn) bestBtn.disabled = false;
+                    updateSetupLock();
                     window.setTimeout(hideBestProgress, 700);
                 }
             }
@@ -3378,6 +3448,8 @@ Old Camp, Castle Door #4|EAAAAFCABBBBCBBBAACCCACBCBBABCC
 
                 isSolving = true;
                 solveBtn.disabled = true;
+                if (bestBtn) bestBtn.disabled = true;
+                updateSetupLock();
                 statusTextEl.textContent = "Calculating...";
                 statusTextEl.classList.remove("error");
                 comboTextEl.textContent = "Please wait";
