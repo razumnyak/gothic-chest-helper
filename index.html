@@ -408,6 +408,17 @@
                 user-select: none;
             }
 
+            .effect-number {
+                line-height: 1;
+            }
+
+            .effect-label {
+                font-size: 10px;
+                line-height: 1;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
             .effect-value.negative {
                 color: var(--green);
             }
@@ -587,14 +598,14 @@
             }
 
             .plate.effect-negative {
-                --plate-tint: rgba(121, 201, 106, 0.26);
+                --plate-tint: rgb(19 105 3 / 26%);
                 --plate-tint-opacity: 1;
                 filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
                     brightness(1.08);
             }
 
             .plate.effect-positive {
-                --plate-tint: rgba(225, 100, 85, 0.24);
+                --plate-tint: rgb(112 19 8 / 24%);
                 --plate-tint-opacity: 1;
                 filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
                     brightness(1.08);
@@ -1082,10 +1093,10 @@
 
                         <p class="help">
                             Select the active plate, then click plates in the
-                            center: left button = -1, middle button = 0, right
-                            button = +1. This defines how plates react when the
-                            active plate moves right. Moving left uses the
-                            inverse effect.
+                            center to cycle their reaction: 0 → +1 → -1. The
+                            active plate is fixed at +1. This defines how plates
+                            react when the active plate moves right. Moving left
+                            uses the inverse effect.
                         </p>
                     </section>
 
@@ -2147,16 +2158,28 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     name.textContent = `P${index + 1}`;
 
                     const description = document.createElement("div");
-                    description.textContent = getEffectDescription(value);
+                    description.textContent = locked
+                        ? "active plate"
+                        : getEffectDescription(value);
 
                     const valueBox = document.createElement("div");
                     valueBox.className = `effect-value ${getEffectClass(value)}${
                         locked ? " locked" : ""
                     }`;
-                    valueBox.textContent = formatEffect(value);
+
+                    const valueNumber = document.createElement("div");
+                    valueNumber.className = "effect-number";
+                    valueNumber.textContent = formatEffect(value);
+
+                    const valueLabel = document.createElement("div");
+                    valueLabel.className = "effect-label";
+                    valueLabel.textContent = getEffectLabel(value);
+
+                    valueBox.appendChild(valueNumber);
+                    valueBox.appendChild(valueLabel);
                     valueBox.title = locked
                         ? "Active plate always moves right"
-                        : "Left click: -1, middle click: 0, right click: +1";
+                        : "Click to cycle: 0, +1, -1";
                     valueBox.addEventListener("contextmenu", (event) => {
                         event.preventDefault();
                     });
@@ -2171,17 +2194,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         }
 
                         if (event.button === 0) {
-                            setEffect(index, -1);
-                            return;
-                        }
-
-                        if (event.button === 1) {
-                            setEffect(index, 0);
-                            return;
-                        }
-
-                        if (event.button === 2) {
-                            setEffect(index, +1);
+                            cycleEffect(index);
                         }
                     });
 
@@ -2307,17 +2320,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     }
 
                     if (event.button === 0) {
-                        setEffect(plateIndex, -1);
-                        return;
-                    }
-
-                    if (event.button === 1) {
-                        setEffect(plateIndex, 0);
-                        return;
-                    }
-
-                    if (event.button === 2) {
-                        setEffect(plateIndex, +1);
+                        cycleEffect(plateIndex);
                     }
                 }
             }
@@ -2355,6 +2358,27 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 comboTextEl.textContent = `P${activePlate + 1}R`;
             }
 
+            function cycleEffect(affectedPlate) {
+                setEffect(
+                    affectedPlate,
+                    getNextEffectValue(
+                        effectsRight[activePlate][affectedPlate],
+                    ),
+                );
+            }
+
+            function getNextEffectValue(value) {
+                if (value === 0) {
+                    return +1;
+                }
+
+                if (value > 0) {
+                    return -1;
+                }
+
+                return 0;
+            }
+
             function normalizeActivePlateEffect() {
                 effectsRight[activePlate][activePlate] = 1;
             }
@@ -2369,6 +2393,18 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 }
 
                 return "does not move";
+            }
+
+            function getEffectLabel(value) {
+                if (value < 0) {
+                    return "reverse";
+                }
+
+                if (value > 0) {
+                    return "same";
+                }
+
+                return "none";
             }
 
             function getEffectClass(value) {
