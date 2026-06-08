@@ -1,0 +1,22 @@
+{
+  "name": "Lockpicking Solver Calculator",
+  "short_name": "Lockpicking Solver",
+  "description": "Interactive plate lockpicking solver calculator with preset codes, shift effects, solution steps, and animated playback.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#11100e",
+  "theme_color": "#11100e",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
