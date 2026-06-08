@@ -1197,6 +1197,8 @@
             const TARGET = 4;
             const MIN = 1;
             const MAX = 7;
+            const MIN_PLATES = 3;
+            const MAX_PLATES = 8;
 
             const MODE_SETUP = "setup";
             const MODE_EFFECTS = "effects";
@@ -1518,7 +1520,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
 
                 const nextPlateCount = nextValue(1);
 
-                if (nextPlateCount < 1 || nextPlateCount > 10) {
+                if (
+                    nextPlateCount < MIN_PLATES ||
+                    nextPlateCount > MAX_PLATES
+                ) {
                     throw new Error("Invalid plate count");
                 }
 
@@ -1787,7 +1792,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             function setPlateCount(nextCount) {
                 templateSelect.value = "";
                 syncTemplateReadonly();
-                plateCount = Math.max(1, Math.min(10, nextCount));
+                plateCount = clamp(nextCount, MIN_PLATES, MAX_PLATES);
 
                 initialPositions = Array.from(
                     { length: plateCount },
