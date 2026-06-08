@@ -312,6 +312,22 @@
                 gap: 10px;
             }
 
+            .active-plate-list {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .active-plate-list .basic-btn {
+                flex: 0 1 calc((100% - 16px) / 3);
+                min-width: 0;
+            }
+
+            .active-plate-list.wide .basic-btn {
+                flex-basis: calc((100% - 24px) / 4);
+            }
+
             .position-row,
             .effect-row {
                 display: grid;
@@ -393,7 +409,7 @@
             }
 
             .effect-value.negative {
-                color: var(--blue);
+                color: var(--green);
             }
 
             .effect-value.positive {
@@ -402,6 +418,12 @@
 
             .effect-value.zero {
                 color: var(--muted);
+            }
+
+            .effect-value.locked {
+                cursor: not-allowed;
+                opacity: 0.62;
+                color: white;
             }
 
             .active-row {
@@ -553,33 +575,29 @@
             }
 
             .plate:hover {
-                filter: drop-shadow(0 0 14px rgba(208, 168, 93, 0.45))
-                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
                     brightness(1.12);
             }
 
             .plate.active {
-                --plate-tint: rgba(126, 188, 232, 0.28);
+                --plate-tint: rgb(0 60 102 / 28%);
                 --plate-tint-opacity: 1;
-                filter: drop-shadow(0 0 20px rgba(230, 190, 95, 0.8))
-                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
-                    brightness(1.22);
+                filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.12);
             }
 
             .plate.effect-negative {
-                --plate-tint: rgba(126, 188, 232, 0.24);
+                --plate-tint: rgba(121, 201, 106, 0.26);
                 --plate-tint-opacity: 1;
-                filter: drop-shadow(0 0 18px rgba(100, 170, 230, 0.85))
-                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
-                    brightness(1.12);
+                filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.08);
             }
 
             .plate.effect-positive {
                 --plate-tint: rgba(225, 100, 85, 0.24);
                 --plate-tint-opacity: 1;
-                filter: drop-shadow(0 0 18px rgba(225, 100, 85, 0.85))
-                    drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
-                    brightness(1.12);
+                filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55))
+                    brightness(1.08);
             }
 
             .plate-label {
@@ -637,7 +655,7 @@
             }
 
             .plate-effect-badge.negative {
-                color: var(--blue);
+                color: var(--green);
             }
 
             .plate-effect-badge.positive {
@@ -1052,7 +1070,10 @@
 
                     <section id="effectPanel" class="section" hidden>
                         <h2 class="section-title">Active Plate</h2>
-                        <div id="activePlateList" class="position-list"></div>
+                        <div
+                            id="activePlateList"
+                            class="active-plate-list"
+                        ></div>
 
                         <h2 class="section-title" style="margin-top: 18px">
                             Plate Reactions
@@ -1616,6 +1637,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 demoPositions = [...initialPositions];
                 effectsRight = template.effectsRight.map((row) => [...row]);
                 activePlate = Math.min(activePlate, plateCount - 1);
+                normalizeActivePlateEffect();
 
                 clearSolution();
                 render();
@@ -1956,6 +1978,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     activePlate = plateCount - 1;
                 }
 
+                normalizeActivePlateEffect();
                 clearSolution();
                 render();
             }
@@ -2034,6 +2057,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
 
             function renderActivePlateSelector() {
                 activePlateListEl.innerHTML = "";
+                activePlateListEl.classList.toggle("wide", plateCount >= 7);
 
                 for (let index = 0; index < plateCount; index++) {
                     const row = document.createElement("button");
@@ -2044,6 +2068,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     row.textContent = `P${index + 1}`;
                     row.addEventListener("click", () => {
                         activePlate = index;
+                        normalizeActivePlateEffect();
                         render();
                     });
 
@@ -2112,6 +2137,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
 
                 for (let index = 0; index < plateCount; index++) {
                     const value = effectsRight[activePlate][index];
+                    const locked = index === activePlate;
 
                     const row = document.createElement("div");
                     row.className = "effect-row";
@@ -2124,10 +2150,13 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     description.textContent = getEffectDescription(value);
 
                     const valueBox = document.createElement("div");
-                    valueBox.className = `effect-value ${getEffectClass(value)}`;
+                    valueBox.className = `effect-value ${getEffectClass(value)}${
+                        locked ? " locked" : ""
+                    }`;
                     valueBox.textContent = formatEffect(value);
-                    valueBox.title =
-                        "Left click: -1, middle click: 0, right click: +1";
+                    valueBox.title = locked
+                        ? "Active plate always moves right"
+                        : "Left click: -1, middle click: 0, right click: +1";
                     valueBox.addEventListener("contextmenu", (event) => {
                         event.preventDefault();
                     });
@@ -2136,6 +2165,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     });
                     valueBox.addEventListener("mousedown", (event) => {
                         event.preventDefault();
+
+                        if (locked) {
+                            return;
+                        }
 
                         if (event.button === 0) {
                             setEffect(index, -1);
@@ -2199,7 +2232,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         plate.classList.add("active");
                     }
 
-                    if (mode === MODE_EFFECTS) {
+                    if (mode === MODE_EFFECTS && index !== activePlate) {
                         const effect = effectsRight[activePlate][index];
 
                         if (effect < 0) {
@@ -2269,6 +2302,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 }
 
                 if (mode === MODE_EFFECTS) {
+                    if (plateIndex === activePlate) {
+                        return;
+                    }
+
                     if (event.button === 0) {
                         setEffect(plateIndex, -1);
                         return;
@@ -2300,6 +2337,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             }
 
             function setEffect(affectedPlate, value) {
+                if (affectedPlate === activePlate) {
+                    return;
+                }
+
                 templateSelect.value = "";
                 syncTemplateReadonly();
                 effectsRight[activePlate][affectedPlate] = value;
@@ -2312,6 +2353,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 statusTextEl.textContent = `Effect preview P${activePlate + 1}R`;
                 statusTextEl.classList.remove("error");
                 comboTextEl.textContent = `P${activePlate + 1}R`;
+            }
+
+            function normalizeActivePlateEffect() {
+                effectsRight[activePlate][activePlate] = 1;
             }
 
             function getEffectDescription(value) {
