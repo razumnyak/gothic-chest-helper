@@ -1,5 +1,6 @@
 const ALGORITHM_BFS = "bfs";
 const ALGORITHM_PLATE_TRAVEL = "plate-travel";
+const ALGORITHM_FEWER_SWITCHES_FAST = "fewer-switches-fast";
 const ALGORITHM_WASD = "wasd";
 
 self.addEventListener("message", (event) => {
@@ -39,24 +40,34 @@ function solve(config) {
         return findWeightedSolution(normalized, createPlateTravelCost);
     }
 
+    if (normalized.algorithm === ALGORITHM_FEWER_SWITCHES_FAST) {
+        return findFewerSwitchesFastSolution(normalized);
+    }
+
     if (normalized.algorithm === ALGORITHM_WASD) {
         return findWeightedSolution(normalized, createWasdCost);
     }
 
-    return findBfsSolution(normalized);
+    return findBfsSolutionOptimized(normalized);
 }
 
 function normalizeConfig(config) {
-    const algorithm = [
+    const rawAlgorithm = config.algorithm;
+    const algorithm = rawAlgorithm === "shortest-fewer-switches"
+        ? ALGORITHM_PLATE_TRAVEL
+        : rawAlgorithm;
+
+    const normalizedAlgorithm = [
         ALGORITHM_BFS,
         ALGORITHM_PLATE_TRAVEL,
+        ALGORITHM_FEWER_SWITCHES_FAST,
         ALGORITHM_WASD,
-    ].includes(config.algorithm)
-        ? config.algorithm
+    ].includes(algorithm)
+        ? algorithm
         : ALGORITHM_BFS;
 
     return {
-        algorithm,
+        algorithm: normalizedAlgorithm,
         plateCount: config.plateCount,
         initialPositions: [...config.initialPositions],
         effectsRight: config.effectsRight.map((row) => [...row]),
@@ -66,22 +77,26 @@ function normalizeConfig(config) {
     };
 }
 
-function findBfsSolution(config) {
-    const queue = [
-        {
-            state: config.initialPositions,
-            path: [],
-        },
-    ];
+function findBfsSolutionOptimized(config) {
+    const initialState = config.initialPositions;
+    const startKey = stateKey(initialState);
+
+    if (isGoal(initialState, config)) {
+        return [];
+    }
+
+    const queue = [initialState];
+    const cameFrom = new Map();
+    const visited = new Set([startKey]);
     let cursor = 0;
-    const visited = new Set([stateKey(config.initialPositions)]);
 
     while (cursor < queue.length) {
         const current = queue[cursor++];
+        const currentKey = stateKey(current);
 
         for (const move of enumerateMoves(config.plateCount)) {
             const nextState = applyMove(
-                current.state,
+                current,
                 move.plateIndex,
                 move.direction,
                 config,
@@ -91,26 +106,81 @@ function findBfsSolution(config) {
                 continue;
             }
 
-            const key = stateKey(nextState);
+            const nextKey = stateKey(nextState);
 
-            if (visited.has(key)) {
+            if (visited.has(nextKey)) {
                 continue;
             }
 
-            const nextPath = [
-                ...current.path,
-                createStep(move.plateIndex, move.direction, current.state, nextState),
-            ];
+            visited.add(nextKey);
+            cameFrom.set(nextKey, {
+                parentKey: currentKey,
+                plateIndex: move.plateIndex,
+                direction: move.direction,
+            });
 
             if (isGoal(nextState, config)) {
-                return nextPath;
+                const moveList = collectReverseMoves(nextKey, cameFrom, startKey);
+                return buildStepsFromMoveList(initialState, moveList, config);
             }
 
-            visited.add(key);
-            queue.push({
-                state: nextState,
-                path: nextPath,
-            });
+            queue.push(nextState);
+        }
+    }
+
+    return null;
+}
+
+function findFewerSwitchesFastSolution(config) {
+    const initialState = config.initialPositions;
+    const startKey = stateKey(initialState);
+
+    if (isGoal(initialState, config)) {
+        return [];
+    }
+
+    const queue = [initialState];
+    const cameFrom = new Map();
+    const visited = new Set([startKey]);
+    let cursor = 0;
+
+    while (cursor < queue.length) {
+        const current = queue[cursor++];
+        const currentKey = stateKey(current);
+
+        for (let plateIndex = 0; plateIndex < config.plateCount; plateIndex++) {
+            for (const direction of [+1, -1]) {
+                let chainState = current;
+                let chainParentKey = currentKey;
+
+                while (true) {
+                    const nextState = applyMove(chainState, plateIndex, direction, config);
+                    if (!nextState) break;
+
+                    const nextKey = stateKey(nextState);
+
+                    if (visited.has(nextKey)) {
+                        break;
+                    }
+
+                    visited.add(nextKey);
+                    cameFrom.set(nextKey, {
+                        parentKey: chainParentKey,
+                        plateIndex,
+                        direction
+                    });
+
+                    if (isGoal(nextState, config)) {
+                        const moveList = collectReverseMoves(nextKey, cameFrom, startKey);
+                        return buildStepsFromMoveList(initialState, moveList, config);
+                    }
+
+                    queue.push(nextState);
+
+                    chainState = nextState;
+                    chainParentKey = nextKey;
+                }
+            }
         }
     }
 
@@ -118,15 +188,16 @@ function findBfsSolution(config) {
 }
 
 function findWeightedSolution(config, createCost) {
-    const startKey = weightedStateKey(config.initialPositions, 0);
+    const initialState = config.initialPositions;
+    const startKey = weightedStateKey(initialState, 0);
     const distances = new Map([[startKey, [0, 0, 0]]]);
+    const cameFrom = new Map();
     const queue = new PriorityQueue(compareQueueItems);
 
     queue.push({
-        state: config.initialPositions,
+        state: initialState,
         cursorPlate: 0,
         cost: [0, 0, 0],
-        path: [],
         order: 0,
     });
 
@@ -142,7 +213,8 @@ function findWeightedSolution(config, createCost) {
         }
 
         if (isGoal(current.state, config)) {
-            return current.path;
+            const moveList = collectReverseMoves(currentKey, cameFrom, startKey);
+            return buildStepsFromMoveList(initialState, moveList, config);
         }
 
         for (const move of enumerateMoves(config.plateCount)) {
@@ -168,17 +240,17 @@ function findWeightedSolution(config, createCost) {
                 continue;
             }
 
-            const nextPath = [
-                ...current.path,
-                createStep(move.plateIndex, move.direction, current.state, nextState),
-            ];
+            cameFrom.set(nextKey, {
+                parentKey: currentKey,
+                plateIndex: move.plateIndex,
+                direction: move.direction,
+            });
 
             distances.set(nextKey, nextCost);
             queue.push({
                 state: nextState,
                 cursorPlate: move.plateIndex,
                 cost: nextCost,
-                path: nextPath,
                 order: order++,
             });
         }
@@ -187,14 +259,16 @@ function findWeightedSolution(config, createCost) {
     return null;
 }
 
-function createPlateTravelCost(currentPlate, nextPlate) {
-    return [Math.abs(nextPlate - currentPlate), 1, 0];
-}
-
 function createWasdCost(currentPlate, nextPlate) {
     const travel = Math.abs(nextPlate - currentPlate);
 
     return [travel + 1, 1, travel];
+}
+
+function createPlateTravelCost(currentPlate, nextPlate) {
+    const travel = Math.abs(nextPlate - currentPlate);
+    const isSwitch = currentPlate !== nextPlate ? 1 : 0;
+    return [travel, 1, isSwitch];
 }
 
 function enumerateMoves(plateCount) {
@@ -230,6 +304,43 @@ function createStep(plateIndex, direction, before, after) {
         before,
         after,
     };
+}
+
+function collectReverseMoves(goalKey, cameFrom, startKey) {
+    const reverseMoves = [];
+    let currentKey = goalKey;
+
+    while (currentKey !== startKey) {
+        const info = cameFrom.get(currentKey);
+        if (!info) {
+            break;
+        }
+        reverseMoves.push({
+            plateIndex: info.plateIndex,
+            direction: info.direction,
+        });
+        currentKey = info.parentKey;
+    }
+
+    reverseMoves.reverse();
+    return reverseMoves;
+}
+
+function buildStepsFromMoveList(initialState, moveList, config) {
+    let current = [...initialState];
+    const steps = [];
+
+    for (const m of moveList) {
+        const before = [...current];
+        const after = applyMove(current, m.plateIndex, m.direction, config);
+        if (!after) {
+            throw new Error("Illegal move during reconstruction");
+        }
+        steps.push(createStep(m.plateIndex, m.direction, before, after));
+        current = after;
+    }
+
+    return steps;
 }
 
 function stateKey(state) {

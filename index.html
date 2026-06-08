@@ -474,9 +474,61 @@
                 border: 1px solid #f0ca7a;
             }
 
-            .solve-options + .primary-btn {
-                width: 100%;
+            .solve-actions {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 52px;
+                gap: 8px;
                 margin-bottom: 16px;
+            }
+
+            .solve-actions .primary-btn {
+                width: 100%;
+            }
+
+            #bestBtn {
+                width: 100%;
+                min-height: 52px;
+                color: #151008;
+                font-size: 20px;
+                font-weight: bold;
+                background: linear-gradient(180deg, #e2bd6f, #9d6e2d);
+                border: 1px solid #f0ca7a;
+            }
+
+            .solve-actions button:disabled {
+                cursor: wait;
+                opacity: 0.68;
+            }
+
+            .best-progress {
+                display: grid;
+                gap: 6px;
+                margin: -8px 0 16px;
+            }
+
+            .best-progress[hidden] {
+                display: none;
+            }
+
+            .best-progress-track {
+                height: 7px;
+                overflow: hidden;
+                background: #11100e;
+                border: 1px solid rgba(208, 168, 93, 0.3);
+            }
+
+            .best-progress-fill {
+                width: var(--best-progress, 0%);
+                height: 100%;
+                background: linear-gradient(90deg, #9f7130, #e2bd6f);
+                transition: width 0.18s ease;
+            }
+
+            .best-progress-label {
+                color: var(--muted);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
             }
 
             .danger-btn {
@@ -659,10 +711,6 @@
                 font-family: Consolas, Monaco, monospace;
                 pointer-events: none;
                 display: none;
-            }
-
-            .plate-effect-badge.visible {
-                /*display: grid;*/
             }
 
             .plate-effect-badge.negative {
@@ -1155,7 +1203,7 @@
                     </div>
 
                     <div class="wasd-panel">
-                        <div class="wasd-title">
+                        <div class="wasd-title" id="wasdTitle">
                             WASD Transcription (<i>Experimental</i>)
                         </div>
                         <div id="wasdOutput" class="wasd-output">
@@ -1167,20 +1215,53 @@
                 </section>
 
                 <aside class="panel">
+                    <h2 class="lock-title">Solution</h2>
+
                     <label class="solve-options">
                         Search Algorithm (Experimental)
                         <select id="algorithmSelect">
-                            <option value="bfs">1. BFS moves [default]</option>
+                            <option value="bfs">
+                                1. BFS shortest [default]
+                            </option>
                             <option value="plate-travel">
                                 2. Less plate travel
                             </option>
-                            <option value="wasd">3. Fewer WASD keys</option>
+                            <option value="fewer-switches-fast">
+                                3. Fewer switches (fast heuristic)
+                            </option>
+                            <option value="wasd">4. Fewer WASD keys</option>
                         </select>
                     </label>
 
-                    <button id="solveBtn" class="primary-btn">Calculate</button>
-
-                    <h2 class="lock-title">Solution</h2>
+                    <div class="solve-actions">
+                        <button id="solveBtn" class="primary-btn">
+                            Calculate
+                        </button>
+                        <button
+                            id="bestBtn"
+                            class="secondary"
+                            title="Auto-select best algorithm (fewest WASD keypresses)"
+                        >
+                            ↻
+                        </button>
+                    </div>
+                    <div
+                        id="bestProgress"
+                        class="best-progress"
+                        aria-live="polite"
+                        hidden
+                    >
+                        <div class="best-progress-track">
+                            <div
+                                id="bestProgressFill"
+                                class="best-progress-fill"
+                            ></div>
+                        </div>
+                        <div
+                            id="bestProgressLabel"
+                            class="best-progress-label"
+                        ></div>
+                    </div>
 
                     <div class="solution-card">
                         <div id="statusText" class="status">
@@ -1295,12 +1376,6 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             let shiftPositions = [...initialPositions];
             let demoPositions = [...initialPositions];
 
-            /**
-             * effectsRight[row][col]
-             * row: which plate moves right.
-             * col: which plate reacts.
-             * value: -1, 0, +1.
-             */
             let effectsRight = createIdentityEffects(plateCount);
 
             const setupModeBtn = document.getElementById("setupModeBtn");
@@ -1337,6 +1412,12 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
 
             const algorithmSelect = document.getElementById("algorithmSelect");
             const solveBtn = document.getElementById("solveBtn");
+            const bestBtn = document.getElementById("bestBtn");
+            const bestProgressEl = document.getElementById("bestProgress");
+            const bestProgressFillEl =
+                document.getElementById("bestProgressFill");
+            const bestProgressLabelEl =
+                document.getElementById("bestProgressLabel");
             const resetBtn = document.getElementById("resetBtn");
             const resetConfirmModal =
                 document.getElementById("resetConfirmModal");
@@ -1367,6 +1448,72 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             let isSolving = false;
             let hasManualTemplateCode = false;
             let shareTooltipTimer = null;
+
+            let solutionCache = {};
+            let cachedSetupKey = null;
+
+            function getSetupKey() {
+                return JSON.stringify({
+                    plateCount,
+                    initialPositions: initialPositions.slice(),
+                    effectsRight: effectsRight.map((row) => row.slice()),
+                });
+            }
+
+            function invalidateSolutionCache() {
+                solutionCache = {};
+                cachedSetupKey = null;
+            }
+
+            function getCachedSolution(algorithm) {
+                const key = getSetupKey();
+                if (key !== cachedSetupKey) {
+                    solutionCache = {};
+                    cachedSetupKey = key;
+                }
+                return solutionCache[algorithm];
+            }
+
+            function setCachedSolution(algorithm, solution) {
+                const key = getSetupKey();
+                if (key !== cachedSetupKey) {
+                    solutionCache = {};
+                    cachedSetupKey = key;
+                }
+                solutionCache[algorithm] = solution;
+            }
+
+            function setBestProgress(done, total, label) {
+                const percent =
+                    total > 0 ? Math.round((done / total) * 100) : 0;
+                if (bestProgressEl) {
+                    bestProgressEl.hidden = false;
+                }
+                if (bestProgressFillEl) {
+                    bestProgressFillEl.style.setProperty(
+                        "--best-progress",
+                        `${percent}%`,
+                    );
+                }
+                if (bestProgressLabelEl) {
+                    bestProgressLabelEl.textContent = `${done}/${total} ${label}`;
+                }
+            }
+
+            function hideBestProgress() {
+                if (bestProgressEl) {
+                    bestProgressEl.hidden = true;
+                }
+                if (bestProgressFillEl) {
+                    bestProgressFillEl.style.setProperty(
+                        "--best-progress",
+                        "0%",
+                    );
+                }
+                if (bestProgressLabelEl) {
+                    bestProgressLabelEl.textContent = "";
+                }
+            }
 
             const presetTemplates = parsePresetTemplates(PRESET_TEMPLATE_LINES);
 
@@ -1430,6 +1577,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             );
 
             solveBtn.addEventListener("click", solve);
+            if (bestBtn) bestBtn.addEventListener("click", findBestSolution);
             algorithmSelect.addEventListener("change", () => {
                 clearSolution();
             });
@@ -1659,6 +1807,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 activePlate = Math.min(activePlate, plateCount - 1);
                 normalizeActivePlateEffect();
 
+                invalidateSolutionCache();
                 clearSolution();
                 render();
                 syncTemplateCode();
@@ -1847,10 +1996,6 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             function findTopPlateUnderPointer(clientX, clientY) {
                 const plates = [...plateStackEl.querySelectorAll(".plate")];
 
-                /**
-                 * Walk from the visually top plate to the bottom plate.
-                 * The z-index values already describe the stack order.
-                 */
                 plates.sort((a, b) => {
                     return Number(b.style.zIndex) - Number(a.style.zIndex);
                 });
@@ -1898,10 +2043,6 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 const imageWidth = plateHitImage.naturalWidth;
                 const imageHeight = plateHitImage.naturalHeight;
 
-                /**
-                 * Match object-fit: contain so hit testing accounts for
-                 * padding created by mismatched image/container ratios.
-                 */
                 const imageRatio = imageWidth / imageHeight;
                 const renderedRatio = renderedWidth / renderedHeight;
 
@@ -1999,6 +2140,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 }
 
                 normalizeActivePlateEffect();
+                invalidateSolutionCache();
                 clearSolution();
                 render();
             }
@@ -2224,10 +2366,6 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     plate.className = "plate";
                     plate.dataset.index = String(index);
 
-                    /**
-                     * Deeper plates sit slightly higher and farther right.
-                     * The closest plate keeps the highest z-index.
-                     */
                     const stackStepX = cssNumber("--plate-step-x");
                     const stackStepY = cssNumber("--plate-step-y");
                     const stackX = index * stackStepX;
@@ -2344,6 +2482,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 );
                 shiftPositions = [...initialPositions];
                 demoPositions = [...initialPositions];
+                invalidateSolutionCache();
                 clearSolution();
                 render();
             }
@@ -2357,6 +2496,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 syncTemplateReadonly();
                 effectsRight[activePlate][affectedPlate] = value;
 
+                invalidateSolutionCache();
                 clearSolution({ resetStatus: false });
                 const preview = applyMove(shiftPositions, activePlate, +1);
                 render();
@@ -2520,11 +2660,17 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             function renderWasdTranscription(steps) {
                 wasdOutputEl.innerHTML = "";
 
+                const wasdTitleEl = document.getElementById("wasdTitle");
+
                 if (steps.length === 0) {
                     const empty = document.createElement("span");
                     empty.className = "wasd-empty";
                     empty.textContent = "No movement required.";
                     wasdOutputEl.appendChild(empty);
+                    if (wasdTitleEl) {
+                        wasdTitleEl.innerHTML =
+                            "WASD Transcription (<i>Experimental</i>)";
+                    }
                     return;
                 }
 
@@ -2550,6 +2696,11 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     );
                     currentPlate = nextPlate;
                 });
+
+                if (wasdTitleEl) {
+                    const keyCount = wasdOutputEl.children.length;
+                    wasdTitleEl.innerHTML = `WASD Transcription [${keyCount}] (<i>Experimental</i>)`;
+                }
             }
 
             function createWasdKey(key, className) {
@@ -2557,6 +2708,20 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 element.className = `wasd-key ${className}`;
                 element.textContent = key;
                 return element;
+            }
+
+            function computeWasdKeyCount(steps) {
+                if (!steps || steps.length === 0) return 0;
+                let count = 0;
+                let currentPlate = 1;
+                steps.forEach((step) => {
+                    const nextPlate = step.plateIndex + 1;
+                    const delta = nextPlate - currentPlate;
+                    count += Math.abs(delta);
+                    count += 1;
+                    currentPlate = nextPlate;
+                });
+                return count;
             }
 
             function buildSolutionTimeline(initialState, steps) {
@@ -2773,6 +2938,73 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 return worker;
             }
 
+            async function getSolutionForAlgorithm(algorithm) {
+                const cached = getCachedSolution(algorithm);
+                if (cached !== undefined) {
+                    return cached;
+                }
+
+                return new Promise((resolve) => {
+                    let worker;
+                    try {
+                        worker = new Worker("solver.worker.js");
+                    } catch (e) {
+                        resolve(null);
+                        return;
+                    }
+
+                    const requestId =
+                        "best-" +
+                        Date.now() +
+                        "-" +
+                        Math.random().toString(36).slice(2);
+
+                    const timeout = setTimeout(() => {
+                        try {
+                            worker.terminate();
+                        } catch {}
+                        resolve(null);
+                    }, 30000);
+
+                    worker.addEventListener("message", (event) => {
+                        const msg = event.data ?? {};
+                        if (msg.requestId !== requestId) return;
+
+                        clearTimeout(timeout);
+                        try {
+                            worker.terminate();
+                        } catch {}
+
+                        let sol = null;
+                        if (msg.type === "solved") {
+                            sol = msg.solution;
+                            if (sol) setCachedSolution(algorithm, sol);
+                        }
+                        resolve(sol);
+                    });
+
+                    worker.addEventListener("error", () => {
+                        clearTimeout(timeout);
+                        try {
+                            worker.terminate();
+                        } catch {}
+                        resolve(null);
+                    });
+
+                    worker.postMessage({
+                        type: "solve",
+                        requestId,
+                        algorithm,
+                        plateCount,
+                        initialPositions: [...initialPositions],
+                        effectsRight: effectsRight.map((row) => [...row]),
+                        min: MIN,
+                        max: MAX,
+                        target: TARGET,
+                    });
+                });
+            }
+
             function cancelActiveSolve() {
                 activeSolveRequestId++;
                 closeSolverWorker();
@@ -2810,6 +3042,10 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     return;
                 }
 
+                if (message.solution) {
+                    const algo = message.algorithm || algorithmSelect.value;
+                    setCachedSolution(algo, message.solution);
+                }
                 renderSolvedPath([...initialPositions], message.solution);
             }
 
@@ -2847,15 +3083,129 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     return;
                 }
 
-                statusTextEl.textContent = "Solution found";
+                statusTextEl.textContent = `Solution found [${solution.length}]`;
                 renderMoveTokens(comboTextEl, solutionSteps);
                 renderWasdTranscription(solutionSteps);
                 renderSolutionTimeline();
                 setActiveSolutionStage(0);
             }
 
+            async function findBestSolution() {
+                if (isSolving) return;
+
+                isSolving = true;
+                solveBtn.disabled = true;
+                if (bestBtn) bestBtn.disabled = true;
+
+                const solvingTitleEl = document.querySelector(".solving-title");
+                const solvingTextEl = document.querySelector(".solving-text");
+                const overlay = document.getElementById("solvingOverlay");
+
+                const prevTitle = solvingTitleEl
+                    ? solvingTitleEl.textContent
+                    : "";
+                const prevText = solvingTextEl ? solvingTextEl.textContent : "";
+
+                if (solvingTitleEl)
+                    solvingTitleEl.textContent = "Evaluating algorithms...";
+                if (solvingTextEl)
+                    solvingTextEl.textContent =
+                        "Running all modes to find the one with fewest WASD presses.";
+                if (overlay) overlay.classList.add("active");
+                statusTextEl.classList.remove("error");
+                comboTextEl.textContent = "Checking algorithms";
+
+                try {
+                    const algos = [
+                        { id: "bfs", label: "BFS shortest" },
+                        { id: "plate-travel", label: "Plate travel" },
+                        {
+                            id: "fewer-switches-fast",
+                            label: "Fast switches",
+                        },
+                        { id: "wasd", label: "WASD" },
+                    ];
+
+                    let best = null;
+                    let bestCount = Infinity;
+
+                    setBestProgress(0, algos.length, "Starting");
+
+                    for (const [index, algo] of algos.entries()) {
+                        const step = index + 1;
+                        setBestProgress(
+                            index,
+                            algos.length,
+                            `Running ${algo.label}`,
+                        );
+                        statusTextEl.textContent = `Best search ${step}/${algos.length}: ${algo.label}`;
+                        if (solvingTextEl) {
+                            solvingTextEl.textContent = `Checking ${algo.label} (${step}/${algos.length}).`;
+                        }
+                        await new Promise((resolve) =>
+                            requestAnimationFrame(resolve),
+                        );
+
+                        let solution = getCachedSolution(algo.id);
+                        if (solution === undefined) {
+                            solution = await getSolutionForAlgorithm(algo.id);
+                        }
+
+                        if (solution && !solution.timeout) {
+                            const count = computeWasdKeyCount(solution);
+                            if (count < bestCount) {
+                                bestCount = count;
+                                best = { algo: algo.id, solution, count };
+                            }
+                        }
+
+                        setBestProgress(
+                            step,
+                            algos.length,
+                            `Done ${algo.label}`,
+                        );
+                    }
+
+                    if (best && best.solution) {
+                        algorithmSelect.value = best.algo;
+                        const initialState = [...initialPositions];
+                        renderSolvedPath(initialState, best.solution);
+
+                        if (statusTextEl) {
+                            statusTextEl.textContent = `Solution found [${best.solution.length}] (auto-best by WASD)`;
+                        }
+                    } else {
+                        if (statusTextEl) {
+                            statusTextEl.textContent =
+                                "No solution found by any algorithm";
+                            statusTextEl.classList.add("error");
+                        }
+                    }
+                } finally {
+                    setBestProgress(4, 4, "Complete");
+                    if (solvingTitleEl) solvingTitleEl.textContent = prevTitle;
+                    if (solvingTextEl) solvingTextEl.textContent = prevText;
+                    if (overlay) overlay.classList.remove("active");
+
+                    isSolving = false;
+                    solveBtn.disabled = false;
+                    if (bestBtn) bestBtn.disabled = false;
+                    window.setTimeout(hideBestProgress, 700);
+                }
+            }
+
             function solve() {
                 const initialState = [...initialPositions];
+                const currentAlgo = algorithmSelect.value;
+
+                const cached = getCachedSolution(currentAlgo);
+                if (cached !== undefined) {
+                    demoPositions = [...initialState];
+                    clearSolution({ resetStatus: false });
+                    renderSolvedPath(initialState, cached);
+                    return;
+                }
+
                 demoPositions = [...initialState];
                 clearSolution({ resetStatus: false });
 
@@ -2910,6 +3260,13 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 stepsEl.innerHTML = "";
                 wasdOutputEl.innerHTML =
                     '<span class="wasd-empty">Calculate a solution to show controls.</span>';
+
+                const wasdTitleEl = document.getElementById("wasdTitle");
+                if (wasdTitleEl) {
+                    wasdTitleEl.innerHTML =
+                        "WASD Transcription (<i>Experimental</i>)";
+                }
+
                 updateSolutionControls();
             }
 
@@ -2935,6 +3292,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                 demoPositions = [...initialPositions];
                 effectsRight = createIdentityEffects(plateCount);
 
+                invalidateSolutionCache();
                 clearSolution();
                 setMode(MODE_SETUP);
             }
