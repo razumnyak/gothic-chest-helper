@@ -1605,7 +1605,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
             solveBtn.addEventListener("click", solve);
             if (bestBtn) bestBtn.addEventListener("click", findBestSolution);
             algorithmSelect.addEventListener("change", () => {
-                clearSolution();
+                applyCachedAlgorithmSolution();
             });
             resetBtn.addEventListener("click", openResetConfirmModal);
             cancelResetBtn.addEventListener("click", closeResetConfirmModal);
@@ -3279,7 +3279,7 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                         renderSolvedPath(initialState, best.solution);
 
                         if (statusTextEl) {
-                            statusTextEl.textContent = `Solution found [${best.solution.length}] (auto-best by WASD)`;
+                            statusTextEl.textContent = `Solution found [${best.solution.length}] (auto-best)`;
                         }
                     } else {
                         if (statusTextEl) {
@@ -3299,6 +3299,21 @@ Old Camp, Castle Door #2|FEGAGFFCBBAAAACABBBBBCACBBBCCBBBACBCBBBBBBC
                     if (bestBtn) bestBtn.disabled = false;
                     window.setTimeout(hideBestProgress, 700);
                 }
+            }
+
+            function applyCachedAlgorithmSolution() {
+                const cached = getCachedSolution(algorithmSelect.value);
+
+                if (cached === undefined) {
+                    clearSolution();
+                    return false;
+                }
+
+                const initialState = [...initialPositions];
+                demoPositions = [...initialState];
+                clearSolution({ resetStatus: false });
+                renderSolvedPath(initialState, cached);
+                return true;
             }
 
             function solve() {
