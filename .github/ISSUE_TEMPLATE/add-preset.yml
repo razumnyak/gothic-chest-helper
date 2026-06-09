@@ -9,7 +9,7 @@ body:
     attributes:
       label: Preset code
       description: Paste the full code from the app.
-      render: text
+      placeholder: EDDDDDCBBBBBCBBBBBCBBBBBCBBBBBC
     validations:
       required: true
 
