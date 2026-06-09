@@ -2,7 +2,7 @@ name: Add Preset
 description: Request adding a new lock preset
 title: "[Preset] "
 labels:
-  - preset
+  - add-preset
 body:
   - type: input
     id: preset-code
