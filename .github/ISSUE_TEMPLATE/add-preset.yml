@@ -1,0 +1,51 @@
+name: Add preset
+description: Request adding a new lock preset
+title: "[Preset] "
+labels:
+  - preset
+body:
+  - type: input
+    id: preset-name
+    attributes:
+      label: Preset name
+      description: Optional short name shown in the preset list.
+      placeholder: "Old Camp, Tower Chest #1"
+    validations:
+      required: false
+
+  - type: textarea
+    id: preset-code
+    attributes:
+      label: Preset code
+      description: Paste the full code from the app.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location / context
+      description: Optional details about where this lock is found.
+      placeholder: "Game area, NPC, quest, room, chest, or door"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      options:
+        - label: I tested this code in the app.
+          required: true
+        - label: This preset is for a character without upgraded lockpicking skills.
+          required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Optional details that help verify the preset.
+      placeholder: "Anything unusual about this lock or setup."
+    validations:
+      required: false
