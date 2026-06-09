@@ -1,19 +1,10 @@
-name: Add preset
+name: Add Preset
 description: Request adding a new lock preset
 title: "[Preset] "
 labels:
   - preset
 body:
   - type: input
-    id: preset-name
-    attributes:
-      label: Preset name
-      description: Optional short name shown in the preset list.
-      placeholder: "Old Camp, Tower Chest #1"
-    validations:
-      required: false
-
-  - type: textarea
     id: preset-code
     attributes:
       label: Preset code
@@ -23,11 +14,20 @@ body:
       required: true
 
   - type: input
+    id: preset-name
+    attributes:
+      label: Preset name
+      description: Optional short name shown in the preset list.
+      placeholder: "Room, Chest, or Door"
+    validations:
+      required: false
+
+  - type: input
     id: location
     attributes:
       label: Location / context
       description: Optional details about where this lock is found.
-      placeholder: "Game area, NPC, quest, room, chest, or door"
+      placeholder: "Game area, NPC, quest"
     validations:
       required: false
 
@@ -47,5 +47,14 @@ body:
       label: Notes
       description: Optional details that help verify the preset.
       placeholder: "Anything unusual about this lock or setup."
+    validations:
+      required: false
+
+  - type: input
+    id: mapgenie-gothic-map
+    attributes:
+      label: Map Genie
+      description: Share link to the chest/door.
+      placeholder: "https://mapgenie.io/gothic-1-remake/maps/valley-of-mines?locationIds=596117"
     validations:
       required: false
