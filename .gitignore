@@ -3,6 +3,8 @@
 !.gitignore
 !README.md
 !index.html
+!script.js
+!localization.js
 !solver.worker.js
 !favicon.ico
 !icon-192.png
