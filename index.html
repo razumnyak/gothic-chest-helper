@@ -913,6 +913,37 @@
                 margin-top: 8px;
             }
 
+            .initial-language-switcher {
+                margin-top: 16px;
+                padding: 12px;
+                border: 1px solid rgba(208, 168, 93, 0.48);
+                background: rgba(208, 168, 93, 0.08);
+                box-shadow: 0 0 18px rgba(208, 168, 93, 0.1);
+            }
+
+            .initial-language-buttons {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .initial-language-btn {
+                min-height: 36px;
+                color: var(--text);
+                border: 1px solid rgba(208, 168, 93, 0.38);
+                background: rgba(0, 0, 0, 0.24);
+                font-family: inherit;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .initial-language-btn.active {
+                color: #151008;
+                border-color: #f4d891;
+                background: #f0ca7a;
+                box-shadow: 0 0 14px rgba(240, 202, 122, 0.34);
+            }
+
             .wasd-group {
                 display: inline-flex;
                 gap: 5px;
@@ -1589,6 +1620,43 @@
                                 class="wasd-empty"
                                 >Calculate a solution to show controls.</span
                             >
+                        </div>
+                    </div>
+
+                    <div
+                        id="initialLanguageSwitcher"
+                        class="initial-language-switcher"
+                        hidden
+                    >
+                        <div class="initial-language-buttons">
+                            <button
+                                type="button"
+                                class="initial-language-btn"
+                                data-lang="en"
+                            >
+                                EN
+                            </button>
+                            <button
+                                type="button"
+                                class="initial-language-btn"
+                                data-lang="ru"
+                            >
+                                RU
+                            </button>
+                            <button
+                                type="button"
+                                class="initial-language-btn"
+                                data-lang="de"
+                            >
+                                DE
+                            </button>
+                            <button
+                                type="button"
+                                class="initial-language-btn"
+                                data-lang="pl"
+                            >
+                                PL
+                            </button>
                         </div>
                     </div>
 

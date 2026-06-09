@@ -75,6 +75,9 @@ const previewStateEl = beforeStateEl.closest(".preview-state");
 const wasdOutputEl = document.getElementById("wasdOutput");
 const wasdPanelEl = wasdOutputEl.closest(".wasd-panel");
 const initialInfoPanel = document.getElementById("initialInfoPanel");
+const initialLanguageSwitcher = document.getElementById(
+    "initialLanguageSwitcher",
+);
 
 const algorithmSelect = document.getElementById("algorithmSelect");
 const solveBtn = document.getElementById("solveBtn");
@@ -273,6 +276,16 @@ if (bestBtn) bestBtn.addEventListener("click", findBestSolution);
 if (languageSelect) {
     languageSelect.addEventListener("change", () => {
         i18n.setLanguage(languageSelect.value);
+    });
+}
+if (initialLanguageSwitcher) {
+    initialLanguageSwitcher.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-lang]");
+        if (!button) {
+            return;
+        }
+
+        i18n.setLanguage(button.dataset.lang);
     });
 }
 if (visualReferenceSelect) {
@@ -974,6 +987,19 @@ function updatePreviewOnlyVisibility() {
     const hasResult = solutionTimeline.length > 0;
     if (initialInfoPanel) {
         initialInfoPanel.hidden = mode !== MODE_SETUP;
+    }
+    if (initialLanguageSwitcher) {
+        const showInitialLanguages =
+            mode === MODE_SETUP && templateSelect.value === "";
+        initialLanguageSwitcher.hidden = !showInitialLanguages;
+        initialLanguageSwitcher
+            .querySelectorAll("[data-lang]")
+            .forEach((button) => {
+                button.classList.toggle(
+                    "active",
+                    button.dataset.lang === i18n.getLanguage(),
+                );
+            });
     }
     if (previewStateEl) {
         previewStateEl.hidden = mode === MODE_SETUP;
